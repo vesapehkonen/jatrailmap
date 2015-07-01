@@ -1,0 +1,26 @@
+extends layout
+
+block content
+  #header
+    p Just Another Trail Map
+  #right
+    if authenticated 
+      p
+       a(href='logout') Logout
+        = '   '
+        a(href='userinfo') Userinfo
+    else
+      fieldset
+        input#inputUserName(type='text', placeholder='Username')
+        input#inputUserPassword(type='password', placeholder='passwd')
+        button#btnLogin Login
+        = ' '
+        span(name='err', id='err')
+      p
+        a(href='newuser') New user
+    h2 Routes
+    each trail, i in trails
+      p
+        a(href="trails/#{trail._id}") #{trail.trailname}
+
+  

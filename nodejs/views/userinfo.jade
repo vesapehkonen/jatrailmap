@@ -1,0 +1,36 @@
+extends layout
+
+block content
+  h1 User information
+  p Change user information or password
+  fieldset
+    input#inputUsername(type='text', placeholder='Username', value=info.username, readonly)
+    br
+    input#inputPassword(type='password', placeholder='Current password')
+    br
+    input#inputFullname(type='text', placeholder='First and Lastname', value=info.fullname)
+    br
+    input#inputCountry(type='text', placeholder='Country', value=info.country)
+    br
+    input#inputState(type='text', placeholder='State', value=info.state)
+    br
+    input#inputCity(type='text', placeholder='City', value=info.city)
+    br
+    input#inputEmail(type='text', placeholder='Email', value=info.email)
+    br
+    button#btnUpdateUser Update
+    = ' '
+    span(name='err', id='err')
+  p
+    = ' '
+  fieldset
+    input#inputOldPassword(type='password', placeholder='Old password')
+    br
+    input#inputNewPassword(type='password', placeholder='New password')
+    br
+    button#btnUpdatePassword Change Password
+    = ' '
+    span(name='err', id='err')
+  p
+      = '   '
+     a(href='/') Main page

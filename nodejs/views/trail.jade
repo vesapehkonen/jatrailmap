@@ -1,0 +1,28 @@
+extends layout
+
+block content
+  #header
+    p Just Another Trail Map
+  #wrapper
+    #left
+      h1 #{info.trailname}
+      p
+        | Location: #{info.location}
+        br
+        |  Date to hiked: #{info.date}
+        br
+        |  User: #{user}
+        br
+        | Description: #{info.description}
+
+    #right
+
+      #canvas
+
+      = ' '
+      span(name='err', id='err')
+
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+  script(src="http://maps.googleapis.com/maps/api/js")
+  script(src="/javascripts/trail.js")
+  //  script(src="http://maps.googleapis.com/maps/api/js?key=YOUR_KEY"></script>

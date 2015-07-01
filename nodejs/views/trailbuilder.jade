@@ -1,0 +1,35 @@
+doctype html
+html
+  head
+    title='Trail Builder'
+    link(rel='stylesheet', href='/css/style.css')
+  body
+    h1 Trail Builder
+    p Please fill in fields and send a new trail.
+      fieldset
+        input#inputUsername(type='text', placeholder='username')
+        br
+        input#inputPassword(type='text', placeholder='password')
+        br
+        input#inputAccess(type='text', placeholder='public, friends or private', value='public')
+        br
+        input#inputTrailName(type='text', placeholder='name of trail')
+        br
+        input#inputDescription(type='text', placeholder='description')
+        br
+        input#inputDate(type='text', placeholder='date')
+        br
+        input#inputLocationName(type='text', placeholder='location')
+        br
+        textarea#textareaCoordinates(rows='20', cols='50', placeholder='longitude,latitude,altitude,timestamp')
+        br
+        button#btnAddButton Add Picture
+        button#btnRemoveButton Less Pictures
+        #TextBoxesGroup
+        br
+        button#btnAddTrail Send
+        = ' '
+        span(name='err', id='err')
+      span(name='err2', id='err2')
+    script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+    script(src='/js/cli-trailbuilder.js')

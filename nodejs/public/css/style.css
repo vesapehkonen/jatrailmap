@@ -1,0 +1,36 @@
+body {
+  padding: 0px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+#header {
+    background-color:black;
+    color:white;
+    text-align:center;
+    padding:5px;
+}
+#wrapper {
+//    overflow: hidden;
+}
+#left {
+    line-height:30px;
+//    background-color:#eeeeee;
+    width:300px;
+    float:left;
+    padding:5px;	      
+}
+#right {
+    padding:10px;	 	 
+//    overflow: hidden;
+}
+#footer {
+    background-color:black;
+    color:white;
+    clear:both;
+    text-align:center;
+   padding:5px;	 	 
+}

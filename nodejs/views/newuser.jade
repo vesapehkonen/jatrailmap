@@ -1,0 +1,26 @@
+extends layout
+
+block content
+  h1 New User
+  p Welcome to My Path Map service. Please fill in fields and submit.
+  fieldset
+    input#inputUsername(type='text', placeholder='Username')
+    br
+    input#inputPassword(type='password', placeholder='Password')
+    br
+    input#inputFullname(type='text', placeholder='First and Lastname')
+    br
+    input#inputCountry(type='text', placeholder='Country')
+    br
+    input#inputState(type='text', placeholder='State')
+    br
+    input#inputCity(type='text', placeholder='City')
+    br
+    input#inputEmail(type='text', placeholder='Email')
+    br
+    button#btnAddUser Submit
+    = ' '
+    span(name='err', id='err')
+  p
+      = '   '
+     a(href='/') Main page
