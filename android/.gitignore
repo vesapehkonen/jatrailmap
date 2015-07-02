@@ -14,7 +14,7 @@
 # build application files
 *.apk
 *.ap_
-build.gradle
+app/build.gradle
 
 # java class files
 *.class
