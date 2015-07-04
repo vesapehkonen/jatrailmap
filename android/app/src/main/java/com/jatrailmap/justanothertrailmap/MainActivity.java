@@ -39,7 +39,7 @@ import java.util.Date;
 import java.util.EmptyStackException;
 
 public class MainActivity extends AppCompatActivity {
-    private final String LOG = "jatrailmap";
+    private final String LOG = "mylog";
     private Context context;
     private LocationTracker tracker = null;
     private Chronometer chronometer;
@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     // Starts the timer and sets states of buttons depending on the existence of the location file
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.i(LOG, "onCreate()");
+        Log.i(LOG, "MainActivity: onCreate()");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Context context = getApplicationContext();
@@ -281,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
                         points = 0;
                         ((TextView) findViewById(R.id.text_locs)).
                                 setText(getString(R.string.points) + Integer.toString(points));
-                        showDialog("Information", "Trail data send successfully");
+                        showDialog("Information", "Trail data was sent successfully");
                         break;
                     case RESULT_CANCELED:
                         //Log.i(LOG, "onActivityResult: RESULT_CANCELED");
