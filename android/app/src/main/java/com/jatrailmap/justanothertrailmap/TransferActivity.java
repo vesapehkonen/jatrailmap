@@ -39,7 +39,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class TransferActivity extends AppCompatActivity {
-    private final String LOG = "jatrailmap";
+    private final String LOG = "mylog";
     private String locsFilename = null, picsFilename = null,
             username = null, password = null, trailname = null,
             locationname = null, description = null;
@@ -269,6 +269,7 @@ public class TransferActivity extends AppCompatActivity {
                 conn.setDoInput(true);
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
                 conn.setDoOutput(true);
+                conn.setChunkedStreamingMode(0);
 
                 // Write request
                 writeContent(conn.getOutputStream());
