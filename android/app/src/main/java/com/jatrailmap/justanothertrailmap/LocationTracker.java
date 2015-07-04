@@ -23,7 +23,7 @@ import java.io.RandomAccessFile;
  * Created by vesa on 6/25/15.
  */
 public class LocationTracker implements LocationListener {
-    private final String LOG = "jatrailmap";
+    private final String LOG = "mylog";
     private String locsFilename;
     private String picsFilename;
     private LocationManager locationManager;
