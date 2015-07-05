@@ -1,22 +1,25 @@
-INSTALL:
-========
+INSTALL
+-------
 
 Install git, nodejs, node-express, npm and mongodb
 
 Clone repository:
-  git clone https://github.com/vesapehkonen/jatrailmap.git
+
+git clone https://github.com/vesapehkonen/jatrailmap.git
 
 Install node modules:
+
   cd jatrailmap/nodejs
   npm install
 
-Default request body size is 102400 bytes, change it to bigger
-add line 
-  limit = 1024 * 1024 * 50;
-to file node_modules/body-parser/node_modules/raw-body/index.js, before line 33.
+Default request body size is 102400 bytes, change it to bigger by adding line 
 
-RUN:
-========
+  limit = 1024 * 1024 * 100;
+
+to the file node_modules/body-parser/node_modules/raw-body/index.js, before the line 33.
+
+RUN
+---
 
 Start server
 npm start
