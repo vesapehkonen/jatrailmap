@@ -35,14 +35,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class TransferActivity extends AppCompatActivity {
     private final String LOG = "mylog";
-    private String locsFilename = null, picsFilename = null,
-            username = null, password = null, trailname = null,
-            locationname = null, description = null;
+    private String locsFilename = null, picsFilename = null,  username = null, password = null,
+            trailname = null, locationname = null, description = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,24 +61,32 @@ public class TransferActivity extends AppCompatActivity {
     }
 
     public void onClick(View view) {
+        String  url;
         final int id = view.getId();
         switch (id) {
             case R.id.button_send:
                 Log.i(LOG, "TransferActivity: button_send clicked");
+                url = ((EditText) findViewById(R.id.edit_server_url)).getText().toString();
                 username = ((EditText) findViewById(R.id.edit_username)).getText().toString();
                 password = ((EditText) findViewById(R.id.edit_password)).getText().toString();
                 trailname = ((EditText) findViewById(R.id.edit_trailname)).getText().toString();
                 locationname = ((EditText) findViewById(R.id.edit_locationname)).getText().toString();
                 description = ((EditText) findViewById(R.id.edit_description)).getText().toString();
 
+                if (username.isEmpty() || password.isEmpty() || trailname.isEmpty()) {
+                    Toast.makeText(getBaseContext(),
+                            "Please fill in fields!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 File file = new File(getExternalFilesDir(null), locsFilename);
 
                 if (file.exists() && file.length() > 0) {
                     if (isNetworkAvailable()) {
                         Log.i(LOG, "Netowrk is available");
-                        new SendTrailTask().execute(getString(R.string.server_url));
+                        new SendTrailTask().execute(url);
                         Toast.makeText(getBaseContext(),
-                                "Send trail data to " + getString(R.string.server_url),
+                                "Send trail data to " + url,
                                 Toast.LENGTH_LONG).show();
                     } else {
                         Log.e(LOG, "Netowrk is NOT available");
@@ -86,7 +94,7 @@ public class TransferActivity extends AppCompatActivity {
                                 Toast.LENGTH_LONG).show();
                     }
                 } else {
-                    Log.e(LOG, getString(R.string.server_url) + "isn't exist");
+                    Log.e(LOG, url + "isn't exist");
                     Toast.makeText(getBaseContext(), "There isn't location data!",
                             Toast.LENGTH_LONG).show();
                 }
@@ -163,7 +171,7 @@ public class TransferActivity extends AppCompatActivity {
         }
 
 
-        private void writeContent(OutputStream stream) throws IOException, JSONException {
+        private void writeContent(OutputStream stream) throws IOException, JSONException, ConnectException {
             File file;
             BufferedReader reader;
             String line;
@@ -293,12 +301,15 @@ public class TransferActivity extends AppCompatActivity {
                 } else {
                     return errMsg;
                 }
+            } catch (ConnectException e) {
+                Log.e(LOG, "exception", e);
+                return "Exception: " + e.getMessage();
             } catch (IOException e) {
                 Log.e(LOG, "exception", e);
-                return "Error when reading data\n" + e.getMessage();
+                return "Exception: " + e.getMessage();
             } catch (JSONException e) {
                 Log.e(LOG, "exeption", e);
-                return "Error when reading data\n" + e.getMessage();
+                return "Exception: " + e.getMessage();
             } finally {
                 if (reader != null) {
                     try {
