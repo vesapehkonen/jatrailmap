@@ -12,7 +12,7 @@ android {
     compileSdkVersion 22
     buildToolsVersion "23.0.0 rc2"
     defaultConfig {
-        applicationId "com.jatrailmap.justanothertrailmap"
+        applicationId 'com.jatrailmap'
         minSdkVersion 15
         targetSdkVersion 22
         versionCode 1
@@ -23,6 +23,8 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    productFlavors {
     }
 }
 
