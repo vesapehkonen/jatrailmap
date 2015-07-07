@@ -30,7 +30,7 @@ public class Iso8061DateTime {
                 ":" + String.format("%02d", minZone);
 
         String datetime = Integer.toString(date.get(Calendar.YEAR)) + "-" +
-                String.format("%02d", date.get(Calendar.MONTH)) + "-" +
+	    String.format("%02d", (date.get(Calendar.MONTH)) + 1) + "-" +
                 String.format("%02d", date.get(Calendar.DAY_OF_MONTH)) + "T" +
                 String.format("%02d", date.get(Calendar.HOUR_OF_DAY)) + ":" +
                 String.format("%02d", date.get(Calendar.MINUTE)) + ":" +
