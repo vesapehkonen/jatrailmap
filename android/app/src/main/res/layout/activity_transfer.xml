@@ -18,19 +18,31 @@ tools:context="com.jatrailmap.justanothertrailmap.TransferActivity">
     android:layout_alignParentStart="true"
     android:layout_alignParentTop="true" />
 
-<EditText
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/default_server_url"
+        android:ems="10"
+        android:id="@+id/edit_server_url"
+        android:layout_below="@+id/text_track_new_trail"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="2dp"
+        android:hint="@string/edit_server_url"
+        android:inputType="textWebEmailAddress" />
+
+    <EditText
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:inputType="textPersonName"
     android:text=""
     android:ems="10"
     android:id="@+id/edit_username"
-    android:layout_below="@+id/text_track_new_trail"
+    android:layout_below="@+id/edit_server_url"
     android:layout_alignParentLeft="true"
     android:layout_alignParentStart="true"
     android:layout_marginTop="2dp"
     android:hint="@string/edit_username" />
-
 
 <EditText
     android:layout_width="wrap_content"
