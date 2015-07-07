@@ -3,24 +3,35 @@ extends layout
 block content
   #header
     p Just Another Trail Map
-  #right
-    if authenticated 
+  #wrapper
+    #left_main
+      if authenticated
+        p
+          a(href='logout') Logout
+          | &nbsp; &nbsp;
+          a(href='userinfo') Userinfo
+          | &nbsp; &nbsp;
+          a(href='https://play.google.com/store/apps/details?id=com.jatrailmap') Get Android App
+          | &nbsp; &nbsp;
+          a(href='https://github.com/vesapehkonen/jatrailmap') Project page
+      else
+        fieldset
+          input#inputUserName(type='text', placeholder='Username')
+          input#inputUserPassword(type='password', placeholder='passwd')
+          button#btnLogin Login
+          = ' '
+          span(name='err', id='err')
+        p
+          a(href='newuser') Create account
+          | &nbsp; &nbsp;
+          a(href='https://play.google.com/store/apps/details?id=com.jatrailmap') Get Android App
+          | &nbsp; &nbsp;
+          a(href='https://github.com/vesapehkonen/jatrailmap') Project page
+      h2 Trails
       p
-       a(href='logout') Logout
-        = '   '
-        a(href='userinfo') Userinfo
-    else
-      fieldset
-        input#inputUserName(type='text', placeholder='Username')
-        input#inputUserPassword(type='password', placeholder='passwd')
-        button#btnLogin Login
-        = ' '
-        span(name='err', id='err')
-      p
-        a(href='newuser') New user
-    h2 Routes
-    each trail, i in trails
-      p
-        a(href="trails/#{trail._id}") #{trail.trailname}
+        each trail, i in trails
+          a(href="trails/#{trail._id}") #{trail.trailname}, #{trail.location}
+          br
+    #right
 
-  
+
