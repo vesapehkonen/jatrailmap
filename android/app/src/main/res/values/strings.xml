@@ -9,9 +9,10 @@
     <string name="edit_locationname">Location</string>
     <string name="edit_description">Description</string>
     <string name="title_activity_transfer">TransferActivity</string>
-    <string name="text_send_trail">Send the trail to the web-site www.jatrailmap.com. You should have been registered.</string>
+    <string name="text_send_trail">Send the trail to the server. You should have been registered to http://jatrailmap.com.</string>
     <string name="locations_filename">locations.json</string>
     <string name="pictures_filename">pictures.json</string>
     <string name="points">Location points: </string>
-    <string name="server_url">http://192.168.1.2:3000/addtrail</string>
+    <string name="edit_server_url">Server URL</string>
+    <string name="default_server_url">http://jatrailmap.com/addtrail</string>
 </resources>
