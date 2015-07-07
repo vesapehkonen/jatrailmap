@@ -136,7 +136,7 @@ public class LocationTracker implements LocationListener {
                 + " Longitude: " + loc.getLongitude()
                 + " Altitude: " + loc.getAltitude();
         Log.i(LOG, line);
-        Toast.makeText(context, line, Toast.LENGTH_SHORT).show();
+        //Toast.makeText(context, line, Toast.LENGTH_SHORT).show();
 
         mainActivity.locationChanged(true);
         boolean addComma = true;
