@@ -4,7 +4,7 @@ body {
 }
 
 a {
-  color: #00B7FF;
+  color: #00A788;
 }
 
 #header {
@@ -18,13 +18,18 @@ a {
 }
 #left {
     line-height:30px;
-//    background-color:#eeeeee;
     width:300px;
     float:left;
-    padding:5px;	      
+    padding: 5px 5px 5px 10px;
+}
+#left_main {
+    line-height:30px;
+    width:500px;
+    float:left;
+    padding: 5px 5px 5px 20px;
 }
 #right {
-    padding:10px;	 	 
+    padding:10px;
 //    overflow: hidden;
 }
 #footer {
