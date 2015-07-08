@@ -170,14 +170,32 @@ router.get('/gettrail', function(req, res) {
     });
 });
 
+function elapsedTime(time1, time2) {
+    var date1 = new Date(time1);
+    var date2 = new Date(time2);
+    var msecs = date2.getTime() - date1.getTime();
+    var secs = msecs / 1000;
+    var hrs = Math.floor(secs / 3600);
+    var mins = Math.floor((secs % 3600) / 60);
+    return hrs + 'h ' + mins + ' min';
+}
+
+function convertDate(dateStr) {
+    var date = new Date(dateStr);
+    return  (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
+}
+
 router.get('/trails/*', function(req, res) {
-    var trailinfo;
+    var info;
     var user= '';
     var parts = req.url.split("/");
-
+    var distance;
+    var time;
+    var date;
+    
     if (parts.length == 3) {
 	var id = parts[2];
-	req.db.get('trails').find( { _id: id }, { fields: { pictures: 0, locations: 0 } }, function(err, doc) {
+	req.db.get('trails').find( { _id: id }, function(err, doc) {
 	    if (err || doc === null) {
 		throw err;
 	    }
@@ -187,32 +205,39 @@ router.get('/trails/*', function(req, res) {
 		res.send("The trail wasn't found");
 		return;
 	    }
-	    trailinfo = doc[0];
-	    console.log(doc[0]);
-	    req.db.get('users').find( { _id: trailinfo.userid },
-				      { fields: {username: 1, fullname: 1, _id: 0 } },
-				      function(err, doc) {
-					  if (err || doc === null) {
-					      throw err;
-					  }
-					  console.log(doc[0]);
-					  if (doc.length === 0) {
-					      user = 'Unknown';
-					  }
-					  else if (doc[0].fullname !== '') {
-					      user = doc[0].fullname;
-					  }
-					  else {
-					      user = doc[0].username;
-					  }
-					  res.render('trail', { 'info': trailinfo, 'user': user });
-				      });
+	    info = doc[0];
+	    info.date = convertDate(doc[0].date);
+
+	    req.db.get('locations').find(
+		{ trailid:  info._id }, { fields: {'loc.coordinates': 1, 'timestamp': 1, _id: 0 } },  function(err, doc) {
+		    if(err || doc === null) throw err;
+		    info.distance = req.geo.distance(doc);
+		    info.time = elapsedTime(doc[0].timestamp, doc[doc.length-1].timestamp);
+
+		    req.db.get('users').find(
+			{ _id: info.userid }, { fields: {username: 1, fullname: 1, _id: 0 } },
+			function(err, doc) {
+			    if (err || doc === null) {
+				throw err;
+			    }
+			    if (doc.length === 0) {
+				info.user = 'Unknown';
+			    }
+			    else if (doc[0].fullname !== '') {
+				info.user = doc[0].fullname;
+			    }
+			    else {
+				info.user = doc[0].username;
+			    }
+			    res.render('trail', { 'info': info });
+			});
+		});
+	
 	});
     }
 });
 
 router.get('/images/*', function(req, res) {
-    var trailinfo;
     var user= 'sdfdsf';
     var parts = req.url.split("/");
 

@@ -11,18 +11,20 @@ block content
         br
         |  Date to hiked: #{info.date}
         br
-        |  User: #{user}
+        |  Elapsed time: #{info.time}
+        br
+        |  Distance: #{info.distance} miles
+        br
+        |  User: #{info.user}
         br
         | Description: #{info.description}
+        br
+        span(name='err', id='err')
 
     #right
 
       #canvas
 
-      = ' '
-      span(name='err', id='err')
-
   script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
   script(src="http://maps.googleapis.com/maps/api/js")
-  script(src="/javascripts/trail.js")
   //  script(src="http://maps.googleapis.com/maps/api/js?key=YOUR_KEY"></script>
