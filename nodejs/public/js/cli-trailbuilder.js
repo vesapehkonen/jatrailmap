@@ -103,7 +103,7 @@ function sendTrail() {
 	if (words.length == 4) {
 	    coords = [];
 	    for (var j=0; j<3; j++) {
-		coords.push(words[j]);
+		coords.push(parseFloat(words[j]));
 	    }
 	    obj = { 'timestamp': words[3],
 		    'loc': { 'type': 'Point', 'coordinates': coords }
