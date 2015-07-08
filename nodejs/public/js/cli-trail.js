@@ -10,6 +10,7 @@ $(document).ready(function() {
 	    data: { 'id': id },
 	    success: function(res) {
 		if (res.status == 'ok') {
+		    /*
 		    var elem = document.getElementsByTagName('span')[0];
 		    elem.innerHTML = "Ok, data received";
 		    elem.style.backgroundColor="blue";
@@ -17,6 +18,7 @@ $(document).ready(function() {
 		    setTimeout(function() {
 			document.getElementsByTagName('span')[0].innerHTML = "";
 		    }, 5000);
+		    */
 		    initializeMap(res.data);
 		}
 		else {
