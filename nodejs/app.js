@@ -14,6 +14,8 @@ var main =   require('./routes/main');
 var trails =   require('./routes/trails');
 var users =   require('./routes/users');
 
+var geo = require('./geo');
+
 var app = express();
 
 // view engine setup
@@ -38,6 +40,7 @@ app.use(function(req, res, next) {
     console.log("query: ", req.query);
     console.log("body: ", req.body);
     req.db = db;
+    req.geo = geo;
     next();
 });
 
