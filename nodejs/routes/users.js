@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 
 function renderMainPage(req, res, auth) {
-    req.db.get('trails').find( {}, {fields: { 'trailname':1 }}, function(err, doc) {
+    req.db.get('trails').find( {}, {fields: { 'trailname':1, 'location':1 }}, function(err, doc) {
 	if (err) {
 	    doc = [];
 	}
