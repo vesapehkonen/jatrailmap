@@ -35,6 +35,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(function(req, res, next) {
     console.log("--------------------------------------------");
+    console.log((new Date()).toString());
     console.log("url: ", req.url);
     console.log("cookies: ", req.cookies);
     console.log("query: ", req.query);
