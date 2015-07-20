@@ -187,11 +187,7 @@ function convertDate(dateStr) {
 
 router.get('/trails/*', function(req, res) {
     var info;
-    var user= '';
     var parts = req.url.split("/");
-    var distance;
-    var time;
-    var date;
     
     if (parts.length == 3) {
 	var id = parts[2];
@@ -212,8 +208,9 @@ router.get('/trails/*', function(req, res) {
 		{ trailid:  info._id }, { fields: {'loc.coordinates': 1, 'timestamp': 1, _id: 0 } },  function(err, doc) {
 		    if(err || doc === null) throw err;
 		    info.distance = req.geo.distance(doc);
-		    info.time = elapsedTime(doc[0].timestamp, doc[doc.length-1].timestamp);
-
+		    if (doc.length > 0) {
+			info.time = elapsedTime(doc[0].timestamp, doc[doc.length-1].timestamp);
+		    }
 		    req.db.get('users').find(
 			{ _id: info.userid }, { fields: {username: 1, fullname: 1, _id: 0 } },
 			function(err, doc) {
