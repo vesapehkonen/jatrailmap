@@ -3,6 +3,7 @@ package com.jatrailmap.justanothertrailmap;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.location.Location;
 import android.content.Context;
 import android.location.LocationListener;
@@ -24,14 +25,20 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.RandomAccessFile;
 import java.text.SimpleDateFormat;
@@ -39,60 +46,164 @@ import java.util.Date;
 import java.util.EmptyStackException;
 
 public class MainActivity extends AppCompatActivity {
+    public class Timer {
+	    private Chronometer chronometer;
+	    private long timeWhenStopped;
+        private boolean running;
+
+	    public Timer(Chronometer c) {
+	        chronometer = c;
+            running = false;
+	    }
+	    public void start() {
+            running = true;
+	        chronometer.setBase(SystemClock.elapsedRealtime() - timeWhenStopped);
+	        chronometer.start();
+	    }
+	    public void stop() {
+            if (!running) {
+                return;
+            }
+            running = false;
+	        timeWhenStopped = SystemClock.elapsedRealtime() - chronometer.getBase();
+	        chronometer.stop();
+	    }
+        public void init(long time) {
+            running = false;
+            timeWhenStopped = time;
+            chronometer.setBase(SystemClock.elapsedRealtime() - timeWhenStopped);
+        }
+        public long get() {
+            if (running) {
+                return SystemClock.elapsedRealtime() - chronometer.getBase();
+            } else {
+                return timeWhenStopped;
+            }
+        }
+    }
+
+    private int delete_this = 0;
+    private Timer timer;
     private final String LOG = "mylog";
     private Context context;
     private LocationTracker tracker = null;
-    private Chronometer chronometer;
-    private long timeWhenStopped;
     private int points = 0;
     private final int TAKE_PICTURE = 1, TRANSFER_DATA = 2;
+    private final int STATE_INIT = 1, STATE_STOPPED = 2, STATE_TRACKING = 3;
+    private int state;
 
-    private void setButtons(String state) {
-        if (state.equals("orig")) {
+    private void resumeState() {
+        File file = new File(getApplicationContext().getExternalFilesDir(null),
+                getString(R.string.state_filename));
+        if (!file.exists()) {
+            state = STATE_INIT;
+            points = 0;
+            timer.init(0);
+            return;
+        }
+		try {
+			InputStreamReader reader= new InputStreamReader(new FileInputStream(file));
+
+			char[] buf= new char[100];
+			String line = "";
+			int bytesRead;
+
+			while ((bytesRead = reader.read(buf, 0, 100)) > 0) {
+				String readstring=String.copyValueOf(buf, 0, bytesRead);
+				line += readstring;
+			}
+			reader.close();
+            JSONObject json = new JSONObject(line);
+            state = json.getInt("state");
+            points = json.getInt("points");
+            timer.init(json.getInt("timer"));
+		}
+        catch (Exception e) {
+            Log.e(LOG, "exception", e);
+   			Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+		}
+        if (state == STATE_TRACKING) {
+            tracker.start();
+            timer.start();
+        }
+	}
+
+    private void saveState() {
+        try {
+            File file = new File(getApplicationContext().getExternalFilesDir(null),
+                    getString(R.string.state_filename));
+            OutputStreamWriter outputWriter = new OutputStreamWriter(new FileOutputStream(file, false));
+            outputWriter.write("{ state: \"" + state + "\", points: \"" + points + "\" , timer: \"" + timer.get() + "\"}");
+            outputWriter.close();
+        }
+        catch (Exception e) {
+            Log.e(LOG, "exception", e);
+            Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
+                   Toast.LENGTH_LONG).show();
+		}
+	}
+
+    private void updateButtons() {
+	switch (state) {
+        case STATE_INIT:
             ((Button) findViewById(R.id.button_start)).setText("Start tracking");
             ((Button) findViewById(R.id.button_start)).setEnabled(true);
             ((Button) findViewById(R.id.button_stop)).setEnabled(false);
             ((Button) findViewById(R.id.button_picture)).setEnabled(false);
             ((Button) findViewById(R.id.button_send)).setEnabled(false);
             ((Button) findViewById(R.id.button_delete)).setEnabled(false);
-        } else if (state.equals("continue")) {
+	    break;
+        case STATE_STOPPED:
             ((Button) findViewById(R.id.button_start)).setText("Continue tracking");
             ((Button) findViewById(R.id.button_start)).setEnabled(true);
             ((Button) findViewById(R.id.button_stop)).setEnabled(false);
             ((Button) findViewById(R.id.button_picture)).setEnabled(false);
             ((Button) findViewById(R.id.button_send)).setEnabled(true);
             ((Button) findViewById(R.id.button_delete)).setEnabled(true);
-        } else if (state.equals("tracking")) {
+	    break;
+        case STATE_TRACKING:
             ((Button) findViewById(R.id.button_start)).setEnabled(false);
             ((Button) findViewById(R.id.button_stop)).setEnabled(true);
             ((Button) findViewById(R.id.button_picture)).setEnabled(true);
             ((Button) findViewById(R.id.button_send)).setEnabled(false);
             ((Button) findViewById(R.id.button_delete)).setEnabled(false);
+	        break;
         }
+	    ((TextView) findViewById(R.id.text_locs)).
+	        setText(getString(R.string.points) + Integer.toString(points));
     }
 
     // Starts the timer and sets states of buttons depending on the existence of the location file
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.i(LOG, "MainActivity: onCreate()");
+        Log.i(LOG, "onCreate() delete_this=" + delete_this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Context context = getApplicationContext();
-        chronometer = (Chronometer) findViewById(R.id.chronometer);
-        int timeWhenStopped;
-
+        timer = new Timer((Chronometer) findViewById(R.id.chronometer));
         File file = new File(context.getExternalFilesDir(null),
                 getString(R.string.locations_filename));
-        if (file.exists() && file.length() != 0) {
-            setButtons("continue");
-        } else {
-            setButtons("orig");
-        }
-        chronometer.setBase(SystemClock.elapsedRealtime());
-        timeWhenStopped = 0;
+
         tracker = new LocationTracker(getString(R.string.locations_filename),
                 getString(R.string.pictures_filename),
                 super.getApplicationContext(), this);
+        resumeState();
+        updateButtons();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
+        //savedInstanceState.putLong("param", 100);
+        super.onSaveInstanceState(savedInstanceState);
+        Log.i(LOG, "MainActivity: onSaveInstanceState()");
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        Log.i(LOG, "MainActivity: onConfigurationChanged()");
+        super.onConfigurationChanged(newConfig);
     }
 
     public void onClick(View view) {
@@ -100,17 +211,17 @@ public class MainActivity extends AppCompatActivity {
         switch (id) {
             case R.id.button_start:
                 if (tracker.start()) {
-                    setButtons("tracking");
-                    chronometer.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);
-                    chronometer.start();
+                    state = STATE_TRACKING;
+                    updateButtons();
+		    timer.start();
                 }
                 break;
 
             case R.id.button_stop:
                 tracker.stop();
-                setButtons("continue");
-                timeWhenStopped = chronometer.getBase() - SystemClock.elapsedRealtime();
-                chronometer.stop();
+    		    state = STATE_STOPPED;
+	    	    updateButtons();
+		        timer.stop();
                 break;
 
             case R.id.button_picture:
@@ -144,10 +255,10 @@ public class MainActivity extends AppCompatActivity {
                                     file.delete();
                                     Log.i(LOG, getString(R.string.pictures_filename) + " deleted");
                                 }
-                                setButtons("orig");
-                                chronometer.setBase(SystemClock.elapsedRealtime());
-                                timeWhenStopped = 0;
-
+				points = 0;
+				state = STATE_INIT;
+				updateButtons();
+				timer.init(0);
                             }
                         })
                         .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
@@ -186,13 +297,48 @@ public class MainActivity extends AppCompatActivity {
 
     public void onBackPressed() {
         Log.i(LOG, "onBackPressed()");
-        tracker.stop();
+        if (state != STATE_STOPPED) {
+            // because we don't want to continue tracking, when we start next time
+            state = STATE_STOPPED;
+            timer.stop();
+        }
         super.onBackPressed();
     }
 
-    public void OnStop() {
+    protected void onStart() {
+        Log.i(LOG, "onStart()");
+        super.onStart();
+    }
+
+    protected void onRestart() {
+        Log.i(LOG, "onRestart()");
+        super.onRestart();
+    }
+
+    protected void onResume() {
+        Log.i(LOG, "onResume()");
+        super.onResume();
+    }
+
+    protected void onPause() {
+        Log.i(LOG, "onPause()");
+        super.onPause();
+    }
+
+    public void onStop() {
         Log.i(LOG, "onStop()");
+        super.onStop();
+    }
+
+    protected void onDestroy() {
+        Log.i(LOG, "onDestroy()");
         tracker.stop();
+        // don't set the state_stopped here, because if orientation caused onDestroy(),
+        // we want to continue immediately when app is started again
+        //state = STATE_STOPPED;
+        // timer.stop();
+        saveState();
+        super.onDestroy();
     }
 
     public void locationChanged(boolean status) {
@@ -202,10 +348,11 @@ public class MainActivity extends AppCompatActivity {
                     setText(getString(R.string.points) + Integer.toString(points));
         }
         else {
+	        // error, the location service doesn't work
             tracker.stop();
-            setButtons("continue");
-            timeWhenStopped = chronometer.getBase() - SystemClock.elapsedRealtime();
-            chronometer.stop();
+	        state = STATE_STOPPED;
+	        updateButtons();
+	        timer.stop();
         }
     }
 
@@ -229,31 +376,40 @@ public class MainActivity extends AppCompatActivity {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "img_" + timeStamp + ".jpg";
         File storageDir = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES);
+	       Environment.DIRECTORY_PICTURES);
         File image = new File(storageDir + "/" + imageFileName);
 
         // Save a file path for use with later
-        currentImagePath = image.getAbsolutePath();
-        Log.i(LOG, "createImagefile: " + currentImagePath);
+	try {
+	    currentImagePath = image.getAbsolutePath();
+	}
+	catch (SecurityException e) {
+	    Log.e(LOG, "exception", e);
+	    return null;
+	}
+	Log.i(LOG, "createImagefile: " + currentImagePath);
         return image;
     }
 
     private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         // Ensure that there's a camera activity to handle the intent
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-            // Create the File where the photo should go
-            File photoFile = null;
-            photoFile = createImageFile();
-            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
-                    Uri.fromFile(photoFile));
-            startActivityForResult(takePictureIntent, TAKE_PICTURE);
-        }
-        else {
+        if (takePictureIntent.resolveActivity(getPackageManager()) == null) {
             Toast.makeText(getBaseContext(), "There isn't a camera!",
                     Toast.LENGTH_SHORT).show();
             Log.w(LOG, "There isn't a camera activity to handle the intent");
+	        return;
         }
+	    // Create the File where the photo should go
+	    File photoFile = null;
+	    if ((photoFile = createImageFile()) == null) {
+            Toast.makeText(getBaseContext(), "Couldn\'t create photo file!",
+                    Toast.LENGTH_SHORT).show();
+	        return;
+	    }
+	    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
+		    Uri.fromFile(photoFile));
+	    startActivityForResult(takePictureIntent, TAKE_PICTURE);
     }
 
     @Override
@@ -275,12 +431,10 @@ public class MainActivity extends AppCompatActivity {
                 switch (resultCode) {
                     case RESULT_OK:
                         Log.i(LOG, "onActivityResult: RESULT_OK");
-                        setButtons("orig");
-                        chronometer.setBase(SystemClock.elapsedRealtime());
-                        timeWhenStopped = 0;
+			            timer.init(0);
                         points = 0;
-                        ((TextView) findViewById(R.id.text_locs)).
-                                setText(getString(R.string.points) + Integer.toString(points));
+			            state = STATE_INIT;
+			            updateButtons();
                         showDialog("Information", "Trail data was sent successfully");
                         break;
                     case RESULT_CANCELED:
