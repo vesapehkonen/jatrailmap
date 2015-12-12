@@ -117,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
             state = json.getInt("state");
             points = json.getInt("points");
             timer.init(json.getInt("timer"));
+	    currentImagePath = json.getString("currentImagePath");
 		}
         catch (Exception e) {
             Log.e(LOG, "exception", e);
@@ -134,7 +135,10 @@ public class MainActivity extends AppCompatActivity {
             File file = new File(getApplicationContext().getExternalFilesDir(null),
                     getString(R.string.state_filename));
             OutputStreamWriter outputWriter = new OutputStreamWriter(new FileOutputStream(file, false));
-            outputWriter.write("{ state: \"" + state + "\", points: \"" + points + "\" , timer: \"" + timer.get() + "\"}");
+            outputWriter.write("{ state: \"" + state +
+			       "\", points: \"" + points +
+			       "\" , timer: \"" + timer.get() +
+			       "\", currentImagePath: \"" + currentImagePath + "\"}");
             outputWriter.close();
         }
         catch (Exception e) {
@@ -369,7 +373,7 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    private String currentImagePath;
+    private String currentImagePath = "";
 
     // Create a image file to the public picture directory
     private File createImageFile()  {
