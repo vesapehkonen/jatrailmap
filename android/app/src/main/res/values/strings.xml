@@ -16,4 +16,5 @@
     <string name="points">Location points: </string>
     <string name="edit_server_url">Server URL</string>
     <string name="default_server_url">http://jatrailmap.com/addtrail</string>
+    <string name="form_state_filename">form_state.json</string>
 </resources>
