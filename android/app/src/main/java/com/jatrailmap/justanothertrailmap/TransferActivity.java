@@ -28,6 +28,7 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +52,7 @@ public class TransferActivity extends AppCompatActivity {
         Bundle extras = getIntent().getExtras();
         locsFilename = extras.getString("locsFilename");
         picsFilename = extras.getString("picsFilename");
+	fillForm();
     }
 
     @Override
@@ -72,6 +74,7 @@ public class TransferActivity extends AppCompatActivity {
                 trailname = ((EditText) findViewById(R.id.edit_trailname)).getText().toString();
                 locationname = ((EditText) findViewById(R.id.edit_locationname)).getText().toString();
                 description = ((EditText) findViewById(R.id.edit_description)).getText().toString();
+		saveForm(url, username, password, trailname, locationname, description);
 
                 if (username.isEmpty() || password.isEmpty() || trailname.isEmpty()) {
                     Toast.makeText(getBaseContext(),
@@ -361,6 +364,58 @@ public class TransferActivity extends AppCompatActivity {
                 })
                 .setIcon(android.R.drawable.ic_dialog_info)
                 .show();
+    }
+
+    private void saveForm(String url, String username, String password, String trailname,
+			  String locationname, String description) {
+        try {
+            File file = new File(getApplicationContext().getExternalFilesDir(null),
+				 getString(R.string.form_state_filename));
+            OutputStreamWriter outputWriter = new OutputStreamWriter(new FileOutputStream(file, false));
+            outputWriter.write("{ url: \"" + url +
+			       "\", username: \"" + username +
+			       "\", password: \"" + password +
+			       "\", trailname: \"" + trailname +
+			       "\", locationname: \"" + locationname +
+			       "\", description: \"" + description + "\"}");
+            outputWriter.close();
+        }
+        catch (Exception e) {
+            Log.e(LOG, "exception", e);
+            Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
+			   Toast.LENGTH_LONG).show();
+	}
+    }
+
+    private void fillForm() {
+        File file = new File(getApplicationContext().getExternalFilesDir(null),
+                getString(R.string.form_state_filename));
+        if (!file.exists()) {
+            return;
+        }
+	try {
+	    InputStreamReader reader= new InputStreamReader(new FileInputStream(file));
+	    char[] buf= new char[100];
+	    String line = "";
+	    int bytesRead;
+	    while ((bytesRead = reader.read(buf, 0, 100)) > 0) {
+		String readstring=String.copyValueOf(buf, 0, bytesRead);
+		line += readstring;
+	    }
+	    reader.close();
+            JSONObject json = new JSONObject(line);
+	    ((EditText) findViewById(R.id.edit_server_url)).setText(json.getString("url"));
+	    ((EditText) findViewById(R.id.edit_username)).setText(json.getString("username"));
+	    ((EditText) findViewById(R.id.edit_password)).setText(json.getString("password"));
+	    ((EditText) findViewById(R.id.edit_trailname)).setText(json.getString("trailname"));
+	    ((EditText) findViewById(R.id.edit_locationname)).setText(json.getString("locationname"));
+	    ((EditText) findViewById(R.id.edit_description)).setText(json.getString("description"));
+	}
+        catch (Exception e) {
+            Log.e(LOG, "exception", e);
+	    Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
+			   Toast.LENGTH_LONG).show();
+	}
     }
 }
 
