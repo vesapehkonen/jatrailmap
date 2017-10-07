@@ -1,0 +1,41 @@
+extends layout
+
+block content
+  #header
+    p Just Another Trail Map
+  #wrapper
+    #left
+      h1 #{info.trailname}
+      p Change trail information
+      fieldset
+        | Trail name: 
+        input#inputTrailname(type='text', placeholder='Trailname', value=info.trailname)
+        br
+        | Location: 
+        input#inputLocation(type='text', placeholder='Location', value=info.location)
+        br
+        |  Date to hiked: 
+        input#inputDate(type='text', placeholder='Date', value=info.date, size=10)
+        br
+        |  Elapsed time: 
+        input#inpupTime(type='text', placeholder='Used time', value=info.time, size=8)
+        br
+        |  Distance (ml): 
+        input#inputDistance(type='text', placeholder='Distance', value=info.distance, size=8)
+        br
+        | Description: 
+        br
+        textarea#inputDescription(type='text', placeholder='Description', cols=35, rows=8)
+          | #{info.description}
+        br
+        input#inputTrailId(type="hidden" value="#{info._id}")
+        button#btnUpdateTrail Save
+        span(name='err', id='err')
+
+    #right
+
+      #canvas
+
+  script(src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDkohyGWwhivFD0oijRDxD8EmyLGfCpXtw")
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+  script(src='/js/cli-edittrail.js')

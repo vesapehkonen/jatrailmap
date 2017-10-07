@@ -21,10 +21,18 @@ block content
         br
         span(name='err', id='err')
 
+
+      if info.owner
+        p
+          a(href="/edittrail/#{info._id}") Edit
+          br
+          a(onclick="deleteTrail('/trail/#{info._id}'); return false;" href="/trail/#{info._id}" ) Delete
+
     #right
 
       #canvas
 
+
+  script(src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDkohyGWwhivFD0oijRDxD8EmyLGfCpXtw")
   script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
-  script(src="http://maps.googleapis.com/maps/api/js")
-  //  script(src="http://maps.googleapis.com/maps/api/js?key=YOUR_KEY"></script>
+  script(src='/js/cli-trail.js')

@@ -188,8 +188,8 @@ function convertDate(dateStr) {
 router.get('/trails/*', function(req, res) {
     var info;
     var parts = req.url.split("/");
-    
-    if (parts.length == 3) {
+
+    if (parts.length >= 3) {
 	var id = parts[2];
 	req.db.get('trails').find( { _id: id }, function(err, doc) {
 	    if (err || doc === null) {
@@ -226,10 +226,106 @@ router.get('/trails/*', function(req, res) {
 			    else {
 				info.user = doc[0].username;
 			    }
+			    if (doc[0].username === req.cookies.username) {
+				info.owner = true;
+			    }
+			    else {
+				info.owner = false;
+			    }
 			    res.render('trail', { 'info': info });
 			});
 		});
 	
+	});
+    }
+});
+
+router.get('/edittrail/*', function(req, res) {
+    var info;
+    var parts = req.url.split("/");
+
+    if (parts.length == 3) {
+	var id = parts[2];
+	req.db.get('trails').find( { _id: id }, function(err, doc) {
+	    if (err || doc === null) {
+		throw err;
+	    }
+	    if (doc.length === 0) {
+		console.log("trail wasn't found");
+		res.status(404);
+		res.send("The trail wasn't found");
+		return;
+	    }
+	    info = doc[0];
+	    info.date = convertDate(doc[0].date);
+
+	    req.db.get('locations').find(
+		{ trailid:  info._id }, { fields: {'loc.coordinates': 1, 'timestamp': 1, _id: 0 } },  function(err, doc) {
+		    if(err || doc === null) throw err;
+		    info.distance = req.geo.distance(doc);
+		    if (doc.length > 0) {
+			info.time = elapsedTime(doc[0].timestamp, doc[doc.length-1].timestamp);
+		    }
+		    res.render('edittrail', { 'info': info });
+		});
+	
+	});
+    }
+});
+
+router.delete('/trail/*', function(req, res) {
+    var user = req.cookies.username;
+    var pass = req.cookies.password;
+    var userid;
+    var info;
+    var parts = req.url.split("/");
+
+    if (parts.length == 3) {
+	var id = parts[2];
+
+	req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
+	    if (err || doc == null) {
+		throw err;
+	    }
+	    if (doc.length == 0) {
+		console.log("username wasn't found from database");
+		var msg = "Username " + user + " wasn't found from database"; 
+		res.json({"status": "notok", "msg": msg}); 
+		return;
+	    }
+	    if (doc[0].password != pass) {
+		console.log("wrong password");
+		var msg = "Wrong password"; 
+		res.json({"status": "notok", "msg": msg}); 
+		return;
+	    }
+	    userid = doc[0]._id;
+
+	    req.db.get('trails').find( { "_id": id }, { fields: {userid: 1, _id: 0 } }, function(err, doc) {
+		if (err || doc == null) {
+		    throw err;
+		}
+		if (doc.length == 0) {
+		    console.log("trail wasn't found from database");
+		    var msg = "Trail " + id + " wasn't found from database"; 
+		    res.json({"status": "notok", "msg": msg}); 
+		    return;
+		}
+		if (!doc[0].userid.equals(userid)) {
+		    console.log("user is not owner of this trail");
+		    console.log("user from trail collection: " + doc[0].userid);
+		    console.log("current user id:            " + userid);
+		    var msg = "User is not owner of this trail"; 
+		    res.json({"status": "notok", "msg": msg}); 
+		    return;
+		}
+		req.db.get('trails').remove( { "_id": id }, function(err, result) {
+		    if (err) {
+			throw err;
+		    }
+		    res.json({"status": "ok"}); 
+		});
+	    });
 	});
     }
 });
@@ -256,5 +352,61 @@ router.get('/images/*', function(req, res) {
 	});
     }
 });
+
+router.post('/updatetrail', function(req, res) {
+    var user = req.cookies.username;
+    var pass = req.cookies.password;
+    var userid;
+    var d = req.body;
+    
+    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
+	if (err || doc == null) {
+	    throw err;
+	}
+	if (doc.length == 0) {
+	    console.log("username wasn't found from database");
+	    var msg = "Username " + user + " wasn't found from database"; 
+	    res.json({"status": "notok", "msg": msg}); 
+            return;
+	}
+	if (doc[0].password != pass) {
+	    console.log("wrong password");
+	    var msg = "Wrong password"; 
+	    res.json({"status": "notok", "msg": msg}); 
+            return;
+	}
+	userid = doc[0]._id;
+
+	req.db.get('trails').find( { "_id": d.id }, { fields: {userid: 1, _id: 0 } }, function(err, doc) {
+	    if (err || doc == null) {
+		throw err;
+	    }
+	    if (doc.length == 0) {
+		console.log("trail wasn't found from database");
+		var msg = "Trail " + d.id + " wasn't found from database"; 
+		res.json({"status": "notok", "msg": msg}); 
+		return;
+	    }
+	    if (!doc[0].userid.equals(userid)) {
+		console.log("user is not owner of this trail");
+		console.log("user from trail collection: " + doc[0].userid);
+		console.log("current user id:            " + userid);
+		var msg = "User is not owner of this trail"; 
+		res.json({"status": "notok", "msg": msg}); 
+		return;
+	    }
+
+	    req.db.get('trails').update( { "_id": d.id },
+		{ "$set": { "trailname": d.trailname, "location": d.location, "description": d.description } },
+                    function(err, result) {
+			if (err) {
+			    throw err;
+			}
+			res.json({"status": "ok"}); 
+		    });
+	});
+    });
+});
+
 
 module.exports = router;

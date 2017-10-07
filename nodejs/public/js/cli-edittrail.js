@@ -1,3 +1,7 @@
+$('#btnUpdateTrail').on('click', updateTrail);
+
+var id = 0;
+
 $(document).ready(function() {
     var url = window.location.pathname;
     var parts = url.split("/");
@@ -75,6 +79,7 @@ function initializeMap(data) {
     map.fitBounds(bounds);
     
     var path = new google.maps.Polyline({
+	editable: true,
         path: coords,
         strokeColor: "#0000FF",
         stroreOpacity: 0.8,
@@ -103,25 +108,35 @@ function initializeMap(data) {
     }
 }
 
-function deleteTrail(url) {
-    if (!confirm('Delete this trail?')) {
-	return;
-    }
+function updateTrail(event) {
+    event.preventDefault();
+
+    var trail = {
+        'id':$('#inputTrailId').val(),
+        'trailname': $('#inputTrailname').val(),
+        'location': $('#inputLocation').val(),
+        'date': $('#inputDate').val(),
+        'time': $('#inputTime').val(),
+        'distance': $('#inputDistance').val(),
+        'description': $('#inputDescription').val()
+    };
+
     $.ajax({
-        type: 'DELETE',
-        data: '',
-        url: url,
+        type: 'POST',
+        data: trail,
+        url: '/updatetrail',
         dataType: 'JSON',
 	success: function(data) {
 	    if (data.status == 'ok') {
 		var elem = document.getElementsByTagName('span')[0];
-		elem.innerHTML = "Trail has deleted";
+		elem.innerHTML = "Trail information has been updated";
 		elem.style.backgroundColor="blue";
 		elem.style.color="white";
 		setTimeout(function() {
 		    document.getElementsByTagName('span')[0].innerHTML = "";
-		    window.location = '/';
-		}, 3000);
+		    window.location = '/trails/' + id;
+		}, 2000);
+		return;
 	    }
 	    else {
 		var elem = document.getElementsByTagName('span')[0];
@@ -140,5 +155,5 @@ function deleteTrail(url) {
 
 	}
     });
-    return true;
 }
+
