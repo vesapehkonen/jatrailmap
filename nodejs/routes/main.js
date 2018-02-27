@@ -16,11 +16,14 @@ router.get('/', function(req, res) {
     var auth = false;
 
     if (user && pass) {
+	//console.log("user and pass ok");
 	req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 0 } }, function(err, doc) {
 	    if (err || doc == null) {
 		throw err;
 	    }
+	    //console.log(doc.length);
 	    if (doc.length == 1 && doc[0].password == pass) {
+		//console.log("pass ok also in db");
 		auth = true;	    
 	    }
 	    renderMainPage(req, res, auth);

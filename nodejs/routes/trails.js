@@ -136,6 +136,7 @@ router.get('/gettrail', function(req, res) {
 	    if(err || doc === null) throw err;
 	    for (i=0; i<doc.length; i++) {
 		locs[i] = {};
+		locs[i].id =  doc[i]._id;
 		locs[i].timestamp =  doc[i].timestamp;
 		locs[i].loc =  doc[i].loc;
 	    }
@@ -143,6 +144,7 @@ router.get('/gettrail', function(req, res) {
 		if(err || doc === null) throw err;
 		pics = doc;
 		for (i=0; i<doc.length; i++) {
+		    pics[i].id =  doc[i]._id;
 		    pics[i].imageid =  doc[i].imageid;
 		    pics[i].timestamp =  doc[i].timestamp;
 		    pics[i].filename =  doc[i].filename;
@@ -398,15 +400,57 @@ router.post('/updatetrail', function(req, res) {
 
 	    req.db.get('trails').update( { "_id": d.id },
 		{ "$set": { "trailname": d.trailname, "location": d.location, "description": d.description } },
-                    function(err, result) {
-			if (err) {
-			    throw err;
-			}
-			res.json({"status": "ok"}); 
-		    });
+		function(err, result) {
+		    if (err) { throw err; }
+		});
+
+	    res.json({"status": "ok"}); 
+	    updatePathData(req, d.updates);
 	});
     });
 });
 
+function updatePathData(req, data) { 
+    if (typeof data == "undefined") {
+	return;
+    }
+    for (var i=0; i<data.length; i++) {
+	console.log(data[i].action);
+	var item = data[i];
+	var act = item.action;
+	if (act == "updateLocation") {
+	    req.db.get('locations').update( { "_id": item.id },
+		{ "$set": { "loc.coordinates.1": item.lat, "loc.coordinates.0": item.lng } },
+		function(err, result) { if (err) { throw err; }});
+	}
+	else if (act == "updatePictureLocation") {
+	    req.db.get('pictures').update( { "_id": item.id },
+		{ "$set": { "loc.coordinates.1": item.lat, "loc.coordinates.0": item.lng } },
+		function(err, result) { if (err) { throw err; }});
+	}
+	else if (act == "updatePicturename") {
+	    console.log("picture.id:" + item.id);
+	    console.log("picture.name:" + item.name);
+	    req.db.get('pictures').update( { "_id": item.id }, { "$set": { "picturename": item.name } },
+		function(err, result) { if (err) { throw err; }});
+	}
+	else if (act == "removeLocation") {
+	    req.db.get('pictures').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; }});
+	}
+	else if (act == "removePicture") {
+	    req.db.get('pictures').find( { "_id": item.id }, { fields: {imageid: 1, _id: 0 } }, function(err, doc) {
+		if (err || doc == null) {
+		    throw err;
+		}
+		if (doc.length == 0) {
+		    console.log("Find error: Picture doc" + item.id + " wasn't found from database");
+		    return;
+		}
+		req.db.get('images').remove( { "_id": doc[0].imageid }, function(err, result) { if (err) { throw err; }});
+		req.db.get('pictures').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; }});
+	    });
+	}
+    }
+}
 
 module.exports = router;

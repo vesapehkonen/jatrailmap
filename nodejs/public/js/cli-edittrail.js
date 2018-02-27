@@ -1,6 +1,11 @@
 $('#btnUpdateTrail').on('click', updateTrail);
 
 var id = 0;
+var locs = [];
+var pics = [];
+var markers = [];
+var windows = [];
+var updateCommands = [];
 
 $(document).ready(function() {
     var url = window.location.pathname;
@@ -48,12 +53,11 @@ $(document).ready(function() {
 function initializeMap(data) {
     var array = data.GetTrailResponse;
     var coords = [];
-    var locs = [];
     var infoWindowPos;
     var infoWindow;
     var marker;
     var height;
-
+    
     height = Math.max($(document).height(), $(window).height()) - 150;
     $('#canvas').css({'width': 'auto', 'height': height});
 
@@ -77,20 +81,74 @@ function initializeMap(data) {
     };
     var map = new google.maps.Map(document.getElementById("canvas"), mapProp);
     map.fitBounds(bounds);
+
+    initializePolyline(map, coords);
+    initializeMarkers(map);
+}
+
+function initializePolyline(map, coords) {
+    var mvccoords = new google.maps.MVCArray(coords);
     
     var path = new google.maps.Polyline({
 	editable: true,
-        path: coords,
+        path: mvccoords,
         strokeColor: "#0000FF",
         stroreOpacity: 0.8,
         strokeWeight: 2
     });
     path.setMap(map);
 
-    for (j=0; j<pics.length; j++) {
-	infoWindowPos = new google.maps.LatLng(pics[j].loc.coordinates[1], pics[j].loc.coordinates[0]); 
-	var contentString = '<div><a href="/images/' + pics[j].imageid +
-	    '"><img src="/images/' + pics[j].imageid + '" width="200"></a></div>';
+    google.maps.event.addListener(mvccoords, 'set_at', function(vertex) {
+	//alert("locs: " + locs + " vertex: " + vertex);
+	var id = locs[vertex].id;
+	var lat = mvccoords.getArray()[vertex].lat();
+	var lng = mvccoords.getArray()[vertex].lng();
+	updateCommands.push( { 'action' : 'updateLocation', 'id': id, 'lat' : lat, 'lng' : lng } );
+    });
+
+    google.maps.event.addListener(mvccoords, 'insert_at', function(vertex) {
+	alert('Adding a new points to the path is not supported!');
+    });
+
+    google.maps.event.addListener(mvccoords, 'remove_at', function(vertex) {
+	var id = locs[vertex].id;
+	updateCommands.push( { 'action' : 'removeLocation', 'id': id} );
+	locs.splice(vertex, 1);
+    });
+
+    google.maps.event.addListener(path, 'rightclick', function(event) {
+	if (event.vertex == undefined) {
+	    return;
+	}
+	if (mvccoords.length <= 2) {
+	    return;
+	}
+	mvccoords.removeAt(event.vertex);
+    });
+}
+
+function updatePicTitle(id) {
+    var text = document.getElementById(id).value;
+    for (var i=0; i<pics.length; i++) {
+	if (pics[i].id == id) {
+	    //pics[i].picturename = text;
+	    markers[i].setTitle(text);
+	    updateCommands.push( { 'action' : 'updatePicturename', 'id': pics[i].id, 'name' : text } );
+	    break;
+	}
+    }
+}
+
+function initializeMarkers(map) {
+    for (var i=0; i<pics.length; i++) {
+	var id = pics[i].id;
+	var imageid = pics[i].imageid;
+	var infoWindowPos = new google.maps.LatLng(pics[i].loc.coordinates[1], pics[i].loc.coordinates[0]); 
+	var title = pics[i].picturename;
+
+	var contentString = '<div><a href="/images/' + id + '"><img src="/images/' +
+	    imageid + '" width="200"></a><p>Title: <input type="text" value="' +
+	    title + '" id="' + id + '" onblur="updatePicTitle(' + "'" + id + "'" + ');"></p></div>';
 
 	infoWindow = new google.maps.InfoWindow({
 	    content: contentString
@@ -98,13 +156,41 @@ function initializeMap(data) {
 	marker = new google.maps.Marker({
 	    position: infoWindowPos,
 	    map: map,			     
-            title: pics[j].picturename
-	});     
+            title: pics[i].picturename,
+	    draggable:true
+	});
+
+	windows.push(infoWindow);
+	markers.push(marker);
+
+	google.maps.event.addListener(infoWindow, 'closeclick', (function(i) {
+	    return function() {
+		;
+	    }
+	})(i));
+
 	google.maps.event.addListener(marker, 'click', (function(marker, infoWindow) {
 	    return function() { 
 		infoWindow.open(map, marker);
 	    }
 	})(marker, infoWindow));
+
+	google.maps.event.addListener(marker, 'rightclick',   (function(i) {
+	    return function() { 
+		markers[i].setMap(null);
+		var id = pics[i].id;
+		updateCommands.push( { 'action': 'removePicture', 'id': id } );
+	    }
+	})(i));
+
+	google.maps.event.addListener(marker, 'dragend', (function(i) {
+	    return function(param) {
+		var id = pics[i].id;
+		lat = param.latLng.lat();
+		lng = param.latLng.lng();
+		updateCommands.push( { 'action': 'updatePictureLocation', 'id': id, 'lat' : lat, 'lng' : lng } );
+	    }
+	})(i));
     }
 }
 
@@ -118,7 +204,8 @@ function updateTrail(event) {
         'date': $('#inputDate').val(),
         'time': $('#inputTime').val(),
         'distance': $('#inputDistance').val(),
-        'description': $('#inputDescription').val()
+        'description': $('#inputDescription').val(),
+	'updates': updateCommands
     };
 
     $.ajax({
@@ -156,4 +243,3 @@ function updateTrail(event) {
 	}
     });
 }
-
