@@ -2,7 +2,8 @@ extends layout
 
 block content
   #header
-    p Just Another Trail Map
+    p
+      a(href='/') Just Another Trail Map
   #wrapper
     #left
       h1 #{info.trailname}
@@ -15,13 +16,13 @@ block content
         input#inputLocation(type='text', placeholder='Location', value=info.location)
         br
         |  Date to hiked: 
-        input#inputDate(type='text', placeholder='Date', value=info.date, size=10)
+        input#inputDate(type='text', placeholder='Date', value=info.date, size=10, disabled)
         br
         |  Elapsed time: 
-        input#inpupTime(type='text', placeholder='Used time', value=info.time, size=8)
+        input#inpupTime(type='text', placeholder='Used time', value=info.time, size=8, disabled)
         br
         |  Distance (ml): 
-        input#inputDistance(type='text', placeholder='Distance', value=info.distance, size=8)
+        input#inputDistance(type='text', placeholder='Distance', value=info.distance, size=8, disabled)
         br
         | Description: 
         br
