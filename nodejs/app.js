@@ -13,6 +13,7 @@ var db = monk('localhost:27017/jatrailmap');
 var main =   require('./routes/main');
 var trails =   require('./routes/trails');
 var users =   require('./routes/users');
+var groups =   require('./routes/groups');
 
 var geo = require('./geo');
 
@@ -48,6 +49,7 @@ app.use(function(req, res, next) {
 app.use('/', main);
 app.use('/', trails);
 app.use('/', users);
+app.use('/', groups);
 
 // catch 404 and forwarding to error handler
 app.use(function(req, res, next) {

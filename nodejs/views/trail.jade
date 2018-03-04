@@ -20,19 +20,32 @@ block content
         br
         | Description: #{info.description}
         br
-        span(name='err', id='err')
-
 
       if info.owner
         p
           a(href="/edittrail/#{info._id}") Edit
           br
           a(onclick="deleteTrail('/trail/#{info._id}'); return false;" href="/trail/#{info._id}" ) Delete
-
+          br
+          span(name='err', id='err')
+          br
+          | Permissions: 
+          if (info.access == 'group')
+            | Group
+            br
+            | Groups: 
+            each group, i in groups
+               a(href="/group/#{group._id}") #{group.name}
+               |  &nbsp;
+          else if (info.access == 'public')
+            | Public
+          else if (info.access == 'private')
+            | Private
+          br
+          a(href="/trail/#{info._id}/permissions") Edit permissions for this trail 
     #right
 
       #canvas
-
 
   script(src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDkohyGWwhivFD0oijRDxD8EmyLGfCpXtw")
   script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')

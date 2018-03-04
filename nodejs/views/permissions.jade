@@ -1,0 +1,53 @@
+extends layout
+
+block content
+  #header
+    p
+      a(href='/') Just Another Trail Map
+  h1 Edit Trail "#{trailname}" Permissions
+  | Select permissions for this trail:
+  ul
+    li Public - All can access, also without login
+    li Private - Only you can access
+    li Group - Check groups who can access
+  fieldset
+    | Permission: 
+    select#selectAccess(type='select')
+      if (access == 'group')
+        option(value="group" selected) Group
+      else
+        option(value="group") Group
+      if (access == 'public')
+        option(value="public" selected) Public
+      else
+        option(value="public") Public
+      if (access == 'private')
+        option(value="private" selected) Private
+      else
+        option(value="private") Private
+    br
+    | Select groups:
+    br
+    each group, i in groups
+      if (group.checked)
+        input#inputGroups(type="checkbox" name="#{group._id}" checked)
+      else
+        input#inputGroups(type="checkbox" name="#{group._id}")
+      |   #{group.name} #{group.checked}
+      br
+    br
+    button#btnUpdatePermissions Save
+    | &nbsp;
+    a(href="/groups")
+      button#btnCancel Cancel
+
+    = ' '
+    span(name='err', id='err')
+  input#inputTrailid(type="hidden" value="#{trailid}")
+
+  p
+    a(href='/groups/') Add, delete and edit groups
+
+  script(src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDkohyGWwhivFD0oijRDxD8EmyLGfCpXtw")
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+  script(src='/js/cli-permissions.js')

@@ -44,3 +44,11 @@ a {
     text-align:center;
    padding:5px;	 	 
 }
+
+#btnNewGroup, #btnEditGroup, #btnDeleteGroup {
+    margin-top: 7px;
+}
+
+#left p {
+    line-height:normal;
+}

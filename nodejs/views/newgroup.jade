@@ -1,0 +1,30 @@
+extends layout
+
+block content
+  #header
+    p
+      a(href='/') Just Another Trail Map
+  h1 Create Group
+  p Please fill in fields and submit.
+  fieldset
+    input#inputGroupName(type='text', placeholder='Group name')
+    br
+    br
+    | Select users:
+    br
+    each user, i in users
+      input#inputUsers(type="checkbox" name="#{user._id}")
+      |   #{user.fullname}
+      br
+    br
+    button#btnAddGroup Submit
+    | &nbsp;
+    button#btnCancel Cancel
+    = ' '
+    span(name='err', id='err')
+  p
+      = '   '
+     a(href='/') Main page
+
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+  script(src='/js/cli-groups.js')

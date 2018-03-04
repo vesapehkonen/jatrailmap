@@ -234,10 +234,25 @@ router.get('/trails/*', function(req, res) {
 			    else {
 				info.owner = false;
 			    }
-			    res.render('trail', { 'info': info });
+			    var ids = [];
+			    var groups = info.groups;
+			    if (groups && groups.length > 0) {
+				for (var i=0; i<groups.length; i++) {
+				    ids[i] = { '_id':groups[i] };
+				}
+				req.db.get('groups').find({'$or': ids }, { fields: {name: 1 } },
+				    function(err, doc) {
+					if (err || doc === null) {
+					    throw err;
+					}
+					res.render('trail', { 'info': info, groups: doc });
+				    });
+			    }
+			    else {
+				res.render('trail', { 'info': info, groups: [] });
+			    }
 			});
 		});
-	
 	});
     }
 });
@@ -283,7 +298,7 @@ router.delete('/trail/*', function(req, res) {
     var parts = req.url.split("/");
 
     if (parts.length == 3) {
-	var id = parts[2];
+	var trailid = parts[2];
 
 	req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
 	    if (err || doc == null) {
@@ -303,7 +318,7 @@ router.delete('/trail/*', function(req, res) {
 	    }
 	    userid = doc[0]._id;
 
-	    req.db.get('trails').find( { "_id": id }, { fields: {userid: 1, _id: 0 } }, function(err, doc) {
+	    req.db.get('trails').find( { "_id": trailid }, { fields: {userid: 1, picutes: 1, locations: 1 } }, function(err, doc) {
 		if (err || doc == null) {
 		    throw err;
 		}
@@ -321,19 +336,25 @@ router.delete('/trail/*', function(req, res) {
 		    res.json({"status": "notok", "msg": msg}); 
 		    return;
 		}
-		req.db.get('trails').remove( { "_id": id }, function(err, result) {
-		    if (err) {
+		var trailid = doc[0]._id;
+		req.db.get('pictures').find( { trailid: trailid }, { fields: { imageid: 1 } }, function(err, doc) {
+		    if (err || doc == null) {
 			throw err;
 		    }
-		    res.json({"status": "ok"}); 
+		    for (var i=0; i<doc.length; i++) {
+			req.db.get('images').remove( { _id: doc[i].imageid }, function(err, result) { if (err) { throw err; } } );
+		    }
+		    req.db.get('pictures').remove( { trailid: trailid }, function(err, result) { if (err) { throw err; } } );
 		});
+		req.db.get('locations').remove( { 'trailid': trailid }, function(err, result) { if (err) { throw err; } } );
+		req.db.get('trails').remove( { "_id": trailid }, function(err, result) { if (err) { throw err; } } );
+		res.json({"status": "ok"});
 	    });
 	});
     }
 });
 
 router.get('/images/*', function(req, res) {
-    var user= 'sdfdsf';
     var parts = req.url.split("/");
 
     if (parts.length == 3) {
@@ -435,22 +456,123 @@ function updatePathData(req, data) {
 		function(err, result) { if (err) { throw err; }});
 	}
 	else if (act == "removeLocation") {
-	    req.db.get('pictures').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; }});
+	    req.db.get('locations').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; } console.log("********* remove loc"); console.log(item.id);});
 	}
 	else if (act == "removePicture") {
-	    req.db.get('pictures').find( { "_id": item.id }, { fields: {imageid: 1, _id: 0 } }, function(err, doc) {
-		if (err || doc == null) {
-		    throw err;
+	    req.db.get('pictures').find( { "_id": item.id }, { fields: {imageid: 1, _id: 0 } }, (function(item) {
+		return function(err, doc) {
+		    if (err || doc == null) {
+			throw err;
+		    }
+		    if (doc.length == 0) {
+			console.log("Find error: Picture doc" + item.id + " wasn't found from database");
+			return;
+		    }
+		    req.db.get('images').remove( { "_id": doc[0].imageid }, function(err, result) { if (err) { throw err; }});
+		    req.db.get('pictures').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; }});
 		}
-		if (doc.length == 0) {
-		    console.log("Find error: Picture doc" + item.id + " wasn't found from database");
-		    return;
-		}
-		req.db.get('images').remove( { "_id": doc[0].imageid }, function(err, result) { if (err) { throw err; }});
-		req.db.get('pictures').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; }});
-	    });
+	    })(item));
 	}
     }
 }
+
+router.get('/trail/*/permissions', function(req, res) {
+    var user = req.cookies.username;
+    var passwd = req.cookies.passwd;
+    var parts = req.url.split("/");
+
+    if (parts.length == 4) {
+	var trailid = parts[2];
+	req.db.get('users').find( { username: user, passwd: passwd }, {fields: {_id: 1} }, function(err, doc) {
+	    if (err || doc === null) {
+		throw err;
+	    }
+	    if (doc.length === 0) {
+		console.log("Username/password not found from database");
+		res.status(401);
+		res.send("Bad username or password");
+		return;
+	    }
+	    var userid = doc[0]._id;
+	    req.db.get('trails').find( { _id: trailid }, {fields: {access: 1, groups: 1, trailname: 1} }, function(err, doc) {
+		if (err || doc === null) {
+		    throw err;
+		}
+		if (doc.length === 0) {
+		    console.log("trail wasn't found");
+		    res.status(404);
+		    res.send("The trail wasn't found");
+		    return;
+		}
+		var access = doc[0].access;
+		var trailname = doc[0].trailname;
+		var groups = doc[0].groups;
+		if (groups == undefined) {
+		    groups = [];
+		}
+		var ids = [];
+		for (var i=0; i<groups.length; i++) {
+		    ids[i] = { '_id': groups[i] };
+		}
+		console.log("userid: " + userid);
+
+		req.db.get('groups').find( {'ownerid': userid}, {fields: {'name':1} }, function(err, doc) {
+		    if (err || doc == null) {
+			throw err;
+		    }
+		    for (var i=0; i<doc.length; i++) {
+			doc[i].checked = false;
+			for (var j=0; j<groups.length; j++) {
+			    if (doc[i]._id == groups[j]) {
+				doc[i].checked = true;
+				break;
+			    }
+			}
+		    }
+		    res.render('permissions', { title: 'Edit permissions of the trail', trailid: trailid, trailname: trailname, access: access, groups: doc });
+		});
+	    });
+	});
+    }
+});
+
+router.post('/trail/*/permissions', function(req, res) {
+    var user = req.cookies.username;
+    var pass = req.cookies.password;
+    var d = req.body;
+    var parts = req.url.split("/");
+
+    if (parts.length == 4) {
+	var trailid = parts[2];
+	console.log("**************trailid: " + trailid);
+	
+	req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
+	    if (err || doc == null) {
+		throw err;
+	    }
+	    if (doc.length == 0) {
+		console.log("username wasn't found from database");
+		var msg = "Username " + user + " wasn't found from database"; 
+		res.json({"status": "notok", "msg": msg}); 
+		return;
+	    }
+	    if (doc[0].password != pass) {
+		console.log("wrong password");
+		var msg = "Wrong password"; 
+		res.json({"status": "notok", "msg": msg}); 
+		return;
+	    }
+	    req.db.get('trails').update( { "_id": trailid }, { "$set": { "access": d.access, "groups": d.groups } }, function(err, result) {
+		if (err) { throw err; }
+		if (result.nModified == 1) {
+		    res.json({"status": "ok"});
+		}
+		else {
+		    res.json({"status": "notok", "msg": "The permissions weren't updated."}); 
+		}
+	    });
+	});
+    }
+});
 
 module.exports = router;

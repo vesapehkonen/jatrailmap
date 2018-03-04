@@ -1,0 +1,39 @@
+extends layout
+
+block content
+  #header
+    p
+      a(href='/') Just Another Trail Map
+  h1 Edit Group
+  p Please edit fields and submit.
+  fieldset
+    | Group name:
+    br
+    input#inputGroupName(type='text', value="#{groupname}")
+    br
+    br
+    | Select users:
+    br
+    each user, i in members
+      input#inputUsers(type="checkbox" name="#{user._id}" checked)
+      |   #{user.fullname}
+      br
+    each user, i in nonmembers
+      input#inputUsers(type="checkbox" name="#{user._id}")
+      |   #{user.fullname}
+      br
+    br
+    button#btnUpdateGroup Submit
+    | &nbsp;
+    a(href="/groups")
+      button#btnCancel Cancel
+
+    = ' '
+    span(name='err', id='err')
+  input#inputGroupId(type="hidden" value="#{groupid}")
+  p
+      = '   '
+     a(href='/') Main page
+
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+  script(src='/js/cli-groups.js')

@@ -1,0 +1,39 @@
+extends layout
+
+block content
+  #header
+    p
+      a(href='/') Just Another Trail Map
+  h1 Manage Groups
+  p With the groups you can manage which people are able to see your trails.
+  fieldset
+    | Greate a new group:
+    br
+    a(href="/newgroup")
+      button#btnNewGroup New Group
+  p
+  fieldset
+    | Please select a group that you want to edit:
+    br
+    select#selectEditGroup(type='select')
+      each group, i in groups
+        option(value="#{group._id}") #{group.name}
+    |  
+    button#btnEditGroup Edit
+  p
+  fieldset
+    | Please select a group that you want to delete:
+    br
+    select#selectDelGroup(type='select')
+      each group, i in groups
+        option(value="#{group._id}") #{group.name}
+    |  
+    button#btnDeleteGroup Delete
+    = ' '
+    span(name='err', id='err')
+  p
+      = '   '
+     a(href='/') Main page
+
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+  script(src='/js/cli-groups.js')

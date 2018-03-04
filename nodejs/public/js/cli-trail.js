@@ -1,4 +1,5 @@
 $(document).ready(function() {
+    renderGroups();
     var url = window.location.pathname;
     var parts = url.split("/");
     if (parts.length == 3) {
@@ -142,3 +143,10 @@ function deleteTrail(url) {
     });
     return true;
 }
+
+function renderGroups() {
+    if ($('#selectAccess').val() === 'public') {
+	$("<p />", { text: "Append group: " }).appendTo("#left");
+    }
+}
+
