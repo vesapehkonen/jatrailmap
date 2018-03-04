@@ -7,7 +7,6 @@ block content
   #wrapper
     #left
       h1 #{info.trailname}
-      p Change trail information
       fieldset
         | Trail name: 
         input#inputTrailname(type='text', placeholder='Trailname', value=info.trailname)
@@ -31,7 +30,13 @@ block content
         br
         input#inputTrailId(type="hidden" value="#{info._id}")
         button#btnUpdateTrail Save
+        | 
+        a(href="/trails/#{info._id}")
+          button#btnCancel Cancel
         span(name='err', id='err')
+      p
+      fieldset
+        p Edit a name, location and descrition. Drag location points on the map. Right click location points or markers for removing them. Adding a new location points to the path is not supported.
 
     #right
 
