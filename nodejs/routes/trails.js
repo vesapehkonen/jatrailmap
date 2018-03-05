@@ -140,6 +140,7 @@ router.get('/gettrail', function(req, res) {
 		locs[i].timestamp =  doc[i].timestamp;
 		locs[i].loc =  doc[i].loc;
 	    }
+	    locs.sort(function(a, b) { return (new Date(a.timestamp)) - (new Date(b.timestamp))});	    
 	    req.db.get('pictures').find( { trailid:  info._id }, function(err, doc) {
 		if(err || doc === null) throw err;
 		pics = doc;
@@ -209,6 +210,7 @@ router.get('/trails/*', function(req, res) {
 	    req.db.get('locations').find(
 		{ trailid:  info._id }, { fields: {'loc.coordinates': 1, 'timestamp': 1, _id: 0 } },  function(err, doc) {
 		    if(err || doc === null) throw err;
+		    doc.sort(function(a, b) { return (new Date(a.timestamp)) - (new Date(b.timestamp))});	    
 		    info.distance = req.geo.distance(doc);
 		    if (doc.length > 0) {
 			info.time = elapsedTime(doc[0].timestamp, doc[doc.length-1].timestamp);
@@ -456,7 +458,7 @@ function updatePathData(req, data) {
 		function(err, result) { if (err) { throw err; }});
 	}
 	else if (act == "removeLocation") {
-	    req.db.get('locations').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; } console.log("********* remove loc"); console.log(item.id);});
+	    req.db.get('locations').remove( { "_id": item.id }, function(err, result) { if (err) { throw err; } });
 	}
 	else if (act == "removePicture") {
 	    req.db.get('pictures').find( { "_id": item.id }, { fields: {imageid: 1, _id: 0 } }, (function(item) {
@@ -514,8 +516,6 @@ router.get('/trail/*/permissions', function(req, res) {
 		for (var i=0; i<groups.length; i++) {
 		    ids[i] = { '_id': groups[i] };
 		}
-		console.log("userid: " + userid);
-
 		req.db.get('groups').find( {'ownerid': userid}, {fields: {'name':1} }, function(err, doc) {
 		    if (err || doc == null) {
 			throw err;
@@ -544,8 +544,6 @@ router.post('/trail/*/permissions', function(req, res) {
 
     if (parts.length == 4) {
 	var trailid = parts[2];
-	console.log("**************trailid: " + trailid);
-	
 	req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
 	    if (err || doc == null) {
 		throw err;
