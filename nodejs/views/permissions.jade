@@ -33,7 +33,8 @@ block content
         input#inputGroups(type="checkbox" name="#{group._id}" checked)
       else
         input#inputGroups(type="checkbox" name="#{group._id}")
-      |   #{group.name} #{group.checked}
+      | &nbsp;
+      a(href='/editgroup/#{group._id}') #{group.name}
       br
     br
     button#btnUpdatePermissions Save
