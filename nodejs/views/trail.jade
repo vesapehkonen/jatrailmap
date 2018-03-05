@@ -42,7 +42,11 @@ block content
           else if (info.access == 'private')
             | Private
           br
-          a(href="/trail/#{info._id}/permissions") Edit permissions for this trail 
+          a(href="/trail/#{info._id}/permissions") Edit permissions for this trail
+      p
+        = '   '
+        a(href='/') Main page
+
     #right
 
       #canvas
