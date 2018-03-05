@@ -1,19 +1,18 @@
 var express = require('express');
 var router = express.Router();
 
-function renderMainPage(req, res, auth) {
-    req.db.get('trails').find( {}, {fields: { 'trailname':1, 'location':1 }}, function(err, doc) {
-	if (err) {
-	    doc = [];
-	}
-	res.render('main', { title: 'Just Another Trail Map', authenticated: auth, trails: doc });
-    });
+function renderMainPage(req, res) {
+    req.db.get('trails').find( {access: 'public'}, {fields: { 'trailname':1, 'location':1 }},
+        function(err, doc) {
+	if (err || doc == null) { throw err; }
+	    res.render('main', { title: 'Just Another Trail Map', authenticated: false, trails: doc });
+	});
 }
 
 router.get('/logout', function(req, res) {
     res.clearCookie('username');
     res.clearCookie('password');
-    renderMainPage(req, res, false);
+    renderMainPage(req, res);
 });
 
 router.get('/userinfo', function(req, res) {
@@ -30,13 +29,13 @@ router.get('/userinfo', function(req, res) {
 	    }
 	    else {
 		console.log("username and password don't match");
-		renderMainPage(req, res, false);
+		renderMainPage(req, res);
 	    }
 	});
     }
     else {
 	console.log("username or password didn't find from cookies");
-	renderMainPage(req, res, false);
+	renderMainPage(req, res);
     }
 });
 
