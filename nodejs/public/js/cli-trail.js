@@ -82,7 +82,6 @@ function initializeMap(data) {
         strokeWeight: 2
     });
     path.setMap(map);
-
     for (j=0; j<pics.length; j++) {
 	infoWindowPos = new google.maps.LatLng(pics[j].loc.coordinates[1], pics[j].loc.coordinates[0]); 
 	var contentString = '<div><a href="/images/' + pics[j].imageid +
@@ -95,13 +94,17 @@ function initializeMap(data) {
 	    position: infoWindowPos,
 	    map: map,			     
             title: pics[j].picturename
-	});     
+        });
 	google.maps.event.addListener(marker, 'click', (function(marker, infoWindow) {
 	    return function() { 
 		infoWindow.open(map, marker);
 	    }
 	})(marker, infoWindow));
     }
+    google.maps.event.addListenerOnce(map, 'tilesloaded', function(){
+	document.getElementById("loading").style.visibility = 'hidden';
+	document.getElementById("loading").style.display = 'none';
+    });
 }
 
 function deleteTrail(url) {

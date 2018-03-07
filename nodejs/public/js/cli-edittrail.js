@@ -84,6 +84,11 @@ function initializeMap(data) {
 
     initializePolyline(map, coords);
     initializeMarkers(map);
+
+    google.maps.event.addListenerOnce(map, 'tilesloaded', function(){
+	document.getElementById("loading").style.visibility = 'hidden';
+	document.getElementById("loading").style.display = 'none';
+    });
 }
 
 function initializePolyline(map, coords) {
@@ -146,7 +151,7 @@ function initializeMarkers(map) {
 	var infoWindowPos = new google.maps.LatLng(pics[i].loc.coordinates[1], pics[i].loc.coordinates[0]); 
 	var title = pics[i].picturename;
 
-	var contentString = '<div><a href="/images/' + id + '"><img src="/images/' +
+	var contentString = '<div><a href="/images/' + imageid + '"><img src="/images/' +
 	    imageid + '" width="200"></a><p>Title: <input type="text" value="' +
 	    title + '" id="' + id + '" onblur="updatePicTitle(' + "'" + id + "'" + ');"></p></div>';
 

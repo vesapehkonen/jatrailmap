@@ -52,3 +52,14 @@ a {
 #left p {
     line-height:normal;
 }
+
+#loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 100;
+    width: 50;
+    heigth: 50;
+    margin-left:125px;
+    margin-top:-25px;
+}
