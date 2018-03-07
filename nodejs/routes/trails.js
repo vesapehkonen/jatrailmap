@@ -206,7 +206,9 @@ router.get('/trails/*', function(req, res) {
 	    }
 	    info = doc[0];
 	    info.date = convertDate(doc[0].date);
-
+	    info.owner = false;
+	    info.user = 'Unknown';
+	    
 	    req.db.get('locations').find(
 		{ trailid:  info._id }, { fields: {'loc.coordinates': 1, 'timestamp': 1, _id: 0 } },  function(err, doc) {
 		    if(err || doc === null) throw err;
@@ -221,20 +223,16 @@ router.get('/trails/*', function(req, res) {
 			    if (err || doc === null) {
 				throw err;
 			    }
-			    if (doc.length === 0) {
-				info.user = 'Unknown';
-			    }
-			    else if (doc[0].fullname !== '') {
-				info.user = doc[0].fullname;
-			    }
-			    else {
-				info.user = doc[0].username;
-			    }
-			    if (doc[0].username === req.cookies.username) {
-				info.owner = true;
-			    }
-			    else {
-				info.owner = false;
+			    if (doc.length > 0) {
+				if (doc[0].fullname !== '') {
+				    info.user = doc[0].fullname;
+				}
+				else {
+				    info.user = doc[0].username;
+				}
+				if (doc[0].username === req.cookies.username) {
+				    info.owner = true;
+				}
 			    }
 			    var ids = [];
 			    var groups = info.groups;
