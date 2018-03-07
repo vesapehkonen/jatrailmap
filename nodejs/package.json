@@ -1,20 +1,24 @@
 {
-  "name": "application-name",
+  "name": "jatrailmap",
   "version": "0.0.1",
-  "private": true,
+  "description": "Just Another Trail Map",
+  "main": "app.js",
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "cookie-parser": "^1.0.1",
+    "debug": "^0.7.4",
+    "express": "^4.0.0",
+    "jade": "^1.11.0",
+    "mongodb": "^2.2.35",
+    "mongoskin": "^1.4.13",
+    "monk": "^6.0.5",
+    "morgan": "^1.0.1",
+    "static-favicon": "^1.0.2"
+  },
+  "devDependencies": {},
   "scripts": {
     "start": "nodejs ./bin/www"
   },
-  "dependencies": {
-    "body-parser": "~1.0.0",
-    "cookie-parser": "~1.0.1",
-    "debug": "~0.7.4",
-    "express": "~4.0.0",
-    "jade": "^1.3.1",
-    "mongodb": "^2.2.31",
-    "mongoskin": "^1.3.20",
-    "monk": "^6.0.5",
-    "morgan": "~1.0.0",
-    "static-favicon": "~1.0.0"
-  }
+  "author": "",
+  "license": "MIT"
 }
