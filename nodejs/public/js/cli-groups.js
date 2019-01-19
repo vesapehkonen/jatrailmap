@@ -89,8 +89,8 @@ function updateGroup(event) {
 	}
     }
     if (checked == false) {
-	alert('Please select at least one checkbox');
-	return false;
+	//alert('Please select at least one checkbox');
+	//return false;
     }
     var data = {
         'groupname': $('#inputGroupName').val(),
