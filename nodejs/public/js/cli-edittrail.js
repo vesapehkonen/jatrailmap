@@ -10,13 +10,13 @@ var updateCommands = [];
 $(document).ready(function() {
     var url = window.location.pathname;
     var parts = url.split("/");
-    if (parts.length == 3) {
+    if (parts.length == 4) {
 	id = parts[2];
 
 	$.ajax({
 	    type: 'GET',
-	    url: '/gettrail',
-	    data: { 'id': id },
+	    url: '/trail/' + id + '/track',
+	    data: { },
 	    success: function(res) {
 		if (res.status == 'ok') {
 		    /*
@@ -28,7 +28,7 @@ $(document).ready(function() {
 			document.getElementsByTagName('span')[0].innerHTML = "";
 		    }, 5000);
 		    */
-		    initializeMap(res.data);
+		    initializeMap(res);
 		}
 		else {
 		    var elem = document.getElementsByTagName('span')[0];
@@ -51,7 +51,7 @@ $(document).ready(function() {
 });
 
 function initializeMap(data) {
-    var array = data.GetTrailResponse;
+    //var array = data.GetTrailResponse;
     var coords = [];
     var infoWindowPos;
     var infoWindow;
@@ -61,6 +61,7 @@ function initializeMap(data) {
     height = Math.max($(document).height(), $(window).height()) - 150;
     $('#canvas').css({'width': 'auto', 'height': height});
 
+    /*
     for (var i=0; i<array.length; i++) {
 	if (array[i].type == 'LocationCollection') {
 	    locs = array[i].locations;
@@ -69,6 +70,10 @@ function initializeMap(data) {
 	    pics = array[i].pictures;
 	}
     }
+    */
+    locs = data.locs;
+    pics = data.pics;
+    
     var bounds = new google.maps.LatLngBounds();
 
     for (j=0; j<locs.length; j++) {
@@ -151,7 +156,7 @@ function initializeMarkers(map) {
 	var infoWindowPos = new google.maps.LatLng(pics[i].loc.coordinates[1], pics[i].loc.coordinates[0]); 
 	var title = pics[i].picturename;
 
-	var contentString = '<div><a href="/images/' + imageid + '"><img src="/images/' +
+	var contentString = '<div><a href="/image/' + imageid + '"><img src="/image/' +
 	    imageid + '" width="200"></a><p>Title: <input type="text" value="' +
 	    title + '" id="' + id + '" onblur="updatePicTitle(' + "'" + id + "'" + ');"></p></div>';
 
@@ -214,10 +219,12 @@ function updateTrail(event) {
     };
 
     $.ajax({
-        type: 'POST',
-        data: trail,
-        url: '/updatetrail',
-        dataType: 'JSON',
+        type: 'PUT',
+        /*data: trail,*/
+        data: JSON.stringify(trail),
+        url: '/trail/' + trail.id,
+        /*dataType: 'JSON',*/
+        contentType: "application/json",
 	success: function(data) {
 	    if (data.status == 'ok') {
 		var elem = document.getElementsByTagName('span')[0];
@@ -226,7 +233,7 @@ function updateTrail(event) {
 		elem.style.color="white";
 		setTimeout(function() {
 		    document.getElementsByTagName('span')[0].innerHTML = "";
-		    window.location = '/trails/' + id;
+		    window.location = '/trail/' + id;
 		}, 2000);
 		return;
 	    }
