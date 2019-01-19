@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+var ObjectId = require('mongodb').ObjectID;
 
 function renderMainPage(req, res) {
     req.db.get('trails').find( {access: 'public'}, {fields: { 'trailname':1, 'location':1 }},
@@ -9,40 +10,25 @@ function renderMainPage(req, res) {
 	});
 }
 
-function checkuser(req, res, callback) {
-    var user = req.cookies.username;
-    var pass = req.cookies.password;
-
-    if (user == undefined) {
-	console.log("ERROR: Username didn't find from cookies");
-	callback(req, res, "ERROR Username didn't find from cookies");
-	return;
-    }
-    if (pass == undefined) {
-	console.log("ERROR: Password didn't find from cookies");
-	callback(req, res, "ERROR: Password didn't find from cookies");
-	return;
-    }
-    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
+function authenticateUser(req, res, callback) {
+    var token = req.cookies.token;
+    
+    req.db.get('sessions').find( { 'token': token }, { fields: {'userid': 1} }, function(err, doc) {
 	if (err || doc == null) {
 	    throw err;
 	}
-	if (doc.length == 0) {
-	    console.log("username wasn't found from database");
-	    callback(req, res, "Username " + user + " wasn't found from database"); 
-	    return;
+	if (doc.length == 1) {
+	    callback(req, res, null, doc[0].userid);
 	}
-	if (doc[0].password != pass) {
-	    console.log("wrong password");
-	    callback(req, res, "Wrong password");
-	    return;
+	else {
+	    console.log("session token '" + token + "' not found from db");
+	    callback(req, res, "Session is expired");
 	}
-	callback(req, res, null, doc[0]._id);
     });
 }
 
 router.get('/groups', function(req, res) {
-    checkuser(req, res, function(req, res, err, userid) {
+    authenticateUser(req, res, function(req, res, err, userid) {
 	if (err == null) {
 	    req.db.get('groups').find( {'ownerid': {$eq : userid}}, {fields: { 'name':1}}, function(err, doc) {
 		if (err || doc == null) {
@@ -52,20 +38,24 @@ router.get('/groups', function(req, res) {
 	    });
 	}
 	else {
-	    console.log("username and password don't match");
 	    renderMainPage(req, res);
 	}
     });
 });
 
 router.get('/newgroup', function(req, res) {
-    checkuser(req, res, function(req, res, err, userid) {
+    authenticateUser(req, res, function(req, res, err, userid) {
 	if (err == null) {
-	    req.db.get('users').find( {'_id': {$ne : userid}}, {fields: { 'fullname':1}}, function(err, doc) {
-		if (err || doc == null) {
+	    req.db.get('users').find( {'_id': {$ne : userid}}, {fields: { 'fullname':1, 'username':1}}, function(err, users) {
+		if (err || users == null) {
 		    throw err;
 		}
-		res.render('newgroup', { title: 'Add New Group', users: doc });
+		for (var i=0; i<users.length; i++) {
+		    if (users[i].fullname == "") {
+			users[i].fullname = users[i].username;
+		    }
+		}
+		res.render('newgroup', { title: 'Add New Group', users: users });
 	    });
 	}
 	else {
@@ -75,9 +65,9 @@ router.get('/newgroup', function(req, res) {
 });
 
 router.post('/addgroup', function(req, res) {
-    var name = req.body.groupname;
-    var users = req.body.users;
-    checkuser(req, res, function(req, res, err, userid) {
+    authenticateUser(req, res, function(req, res, err, userid) {
+	var name = req.body.groupname;
+	var users = req.body.users;
 	if (err == null) {
 	    req.db.get('groups').insert({'ownerid': userid, 'members': users, 'name': name}, function(err, doc) {
 		if (err || doc == null) {
@@ -93,7 +83,7 @@ router.post('/addgroup', function(req, res) {
 });
 
 router.get('/editgroup/*', function(req, res) {
-    checkuser(req, res, function(req, res, err, userid) {
+    authenticateUser(req, res, function(req, res, err, userid) {
 	if (err == null) {
 	    var parts = req.url.split("/");
 	    if (parts.length != 3) {
@@ -111,58 +101,64 @@ router.get('/editgroup/*', function(req, res) {
 		    return;
 		}
 		var groupname = doc[0].name;
-		var ids = [];
-		for (var i=0; i<doc[0].members.length; i++) {
-		    ids[i] = { '_id':doc[0].members[i] };
-		}
-		req.db.get('users').find( { '$or': ids }, {fields: {'fullname':1} }, function(err, doc) {
+		var ids = doc[0].members;
+
+		// get all member ids
+		req.db.get('users').find( { _id: {'$in': ids} }, {fields: {'fullname':1, 'username': 1} }, function(err, members) {
 		    if (err || doc == null) {
 			throw err;
 		    }
-		    var members = [];
-		    if (doc) {
-			members = doc
-		    }
-
-		    // do a query for getting all non member ids
-		    var ids = [];
-		    for (var i=0; i<members.length; i++) {
-			ids[i] = { '_id':members[i]._id };
-		    }
-		    ids[i] = { '_id':userid };
-		    req.db.get('users').find( { '$nor': ids }, {fields: {'fullname':1} }, function(err, doc) {
+		    // get all non member ids
+		    ids.push(userid);
+		    req.db.get('users').find( { '$nor': [ {_id: { '$in':ids } } ] }, {fields: {'fullname':1, 'username': 1} }, function(err, nonmembers) {
 			if (err || doc == null) {
 			    throw err;
 			}
-			var nonmembers = [];
-			if (doc) {
-			    nonmembers = doc
+			// if full name is not available, use username
+			for (var i=0; i<members.length; i++) {
+			    if (members[i].fullname == "") {
+				members[i].fullname = members[i].username;
+			    }
 			}
-			res.render('editgroup', { title: 'Add New Group', groupid:groupid, groupname: groupname, members: members, nonmembers: nonmembers });
+			for (var i=0; i<nonmembers.length; i++) {
+			    if (nonmembers[i].fullname == "") {
+				nonmembers[i].fullname = nonmembers[i].username;
+			    }
+			}
+			res.render('editgroup', { title: 'Edit Group', groupid:groupid, groupname: groupname, members: members, nonmembers: nonmembers });
 		    });
 		});
 	    });
+	}
+	else {
+	    renderMainPage(req, res);
 	}
     });
 });
 
 router.post('/updategroup', function(req, res) {
-    checkuser(req, res, function(req, res, err, userid) {
+    authenticateUser(req, res, function(req, res, err, userid) {
 	var groupname = req.body.groupname;
-	var members = req.body.members;
 	var groupid = req.body.groupid;
+	var members = [];
+
+	if (req.body.members) {
+	    for (var i=0; i<req.body.members.length; i++) {
+		members[i] = ObjectId(req.body.members[i]);
+	    }
+	}
 	if (err == null) {
 	    req.db.get('groups').update( { '_id': groupid, 'ownerid':userid },
-		{ "$set": { "name": groupname, "members": members } },
-		function(err, result) {
-		    if (err) { throw err; }
-		    if (result.nModified == 1) {
-			res.json({"status": "ok"});
-		    }
-		    else {
-			res.json({"status": "notok", "msg": "The group wasn't updated."}); 
-		    }
-		});
+	     { "$set": { "name": groupname, "members": members } },
+	      function(err, result) {
+		if (err) { throw err; }
+		if (result.nModified == 1) {
+		    res.json({"status": "ok"});
+		}
+		else {
+		    res.json({"status": "notok", "msg": "The group wasn't updated."}); 
+		}
+	      });
 	}
 	else {
 	    res.json({"status": "notok", "msg": err}); 
@@ -171,14 +167,12 @@ router.post('/updategroup', function(req, res) {
 });
 
 router.delete('/group/*', function(req, res) {
-    checkuser(req, res, function(req, res, err, userid) {
+    authenticateUser(req, res, function(req, res, err, userid) {
 	if (err == null) {
 	    var parts = req.url.split("/");
 	    
 	    if (parts.length == 3) {
 		var id = parts[2];
-		console.log('id', id);
-		console.log('userid', userid);
 		req.db.get('groups').remove( { "_id": id, 'ownerid': userid }, function(err, result) {
 		    if (err) {
 			throw err;
