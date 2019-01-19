@@ -10,7 +10,7 @@ block content
       p
         | Location: #{info.location}
         br
-        |  Date to hiked: #{info.date}
+        |  Date: #{info.date}
         br
         |  Elapsed time: #{info.time}
         br
@@ -23,7 +23,7 @@ block content
 
       if info.owner
         p
-          a(href="/edittrail/#{info._id}") Edit
+          a(href="/trail/#{info._id}/edit") Edit
           br
           a(onclick="deleteTrail('/trail/#{info._id}'); return false;" href="/trail/#{info._id}" ) Delete
           br
@@ -35,7 +35,7 @@ block content
             br
             | Groups: 
             each group, i in groups
-               a(href="/group/#{group._id}") #{group.name}
+               a(href="/editgroup/#{group._id}") #{group.name}
                |  &nbsp;
           else if (info.access == 'public')
             | Public
