@@ -7,8 +7,8 @@ $(document).ready(function() {
 
 	$.ajax({
 	    type: 'GET',
-	    url: '/gettrail',
-	    data: { 'id': id },
+	    url: '/trail/' + id + '/track',
+	    data: { },
 	    success: function(res) {
 		if (res.status == 'ok') {
 		    /*
@@ -20,7 +20,7 @@ $(document).ready(function() {
 			document.getElementsByTagName('span')[0].innerHTML = "";
 		    }, 5000);
 		    */
-		    initializeMap(res.data);
+		    initializeMap(res);
 		}
 		else {
 		    var elem = document.getElementsByTagName('span')[0];
@@ -43,7 +43,7 @@ $(document).ready(function() {
 });
 
 function initializeMap(data) {
-    var array = data.GetTrailResponse;
+    //var array = data.GetTrailResponse;
     var coords = [];
     var locs = [];
     var infoWindowPos;
@@ -54,6 +54,7 @@ function initializeMap(data) {
     height = Math.max($(document).height(), $(window).height()) - 150;
     $('#canvas').css({'width': 'auto', 'height': height});
 
+    /*
     for (var i=0; i<array.length; i++) {
 	if (array[i].type == 'LocationCollection') {
 	    locs = array[i].locations;
@@ -62,6 +63,10 @@ function initializeMap(data) {
 	    pics = array[i].pictures;
 	}
     }
+    */
+    locs = data.locs;
+    pics = data.pics;
+    
     var bounds = new google.maps.LatLngBounds();
 
     for (j=0; j<locs.length; j++) {
@@ -84,8 +89,8 @@ function initializeMap(data) {
     path.setMap(map);
     for (j=0; j<pics.length; j++) {
 	infoWindowPos = new google.maps.LatLng(pics[j].loc.coordinates[1], pics[j].loc.coordinates[0]); 
-	var contentString = '<div><a href="/images/' + pics[j].imageid +
-	    '"><img src="/images/' + pics[j].imageid + '" width="200"></a></div>';
+	var contentString = '<div><a href="/image/' + pics[j].imageid +
+	    '"><img src="/image/' + pics[j].imageid + '" width="200"></a></div>';
 
 	infoWindow = new google.maps.InfoWindow({
 	    content: contentString
