@@ -1,5 +1,18 @@
 var express = require('express');
 var router = express.Router();
+const bcrypt = require('bcrypt');
+
+function randomString() {
+    var count = 64;
+    var chars = "abcdefghijklmopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    var len = chars.length;
+    var arr = [];
+    for (var i=0; i<count; i++) {
+	var ch = chars[Math.floor(Math.random() * len)];
+	arr.push(ch);
+    }
+    return arr.join("");
+}
 
 function renderMainPage(req, res) {
     req.db.get('trails').find( {access: 'public'}, {fields: { 'trailname':1, 'location':1 }},
@@ -10,59 +23,70 @@ function renderMainPage(req, res) {
 }
 
 router.get('/logout', function(req, res) {
-    res.clearCookie('username');
-    res.clearCookie('password');
-    renderMainPage(req, res);
+    var token = req.cookies.token;
+    req.db.get('sessions').remove( { 'token': token }, function(err, doc) {
+	if (err || doc == null) { throw err; }
+	res.clearCookie('token');
+	renderMainPage(req, res);
+    });
 });
 
 router.get('/userinfo', function(req, res) {
-    var user = req.cookies.username;
-    var pass = req.cookies.password;
-
-    if (user && pass) {
-	req.db.get('users').find( { username: user }, {}, function(err, doc) {
-	    if (err || doc == null) {
-		throw err;
-	    }
-	    if (doc.length == 1 && doc[0].password == pass) {
+    var token = req.cookies.token;
+    req.db.get('sessions').find( { 'token': token }, {}, function(err, doc) {
+	if (err || doc == null) {
+	    throw err;
+	}
+	if (doc.length == 1) {
+	    var userid = doc[0].userid;
+	    req.db.get('users').find( { _id: userid }, {}, function(err, doc) {
+		if (err || doc == null) {
+		    throw err;
+		}
 		res.render('userinfo', { title: 'User infomation', info: doc[0]});
-	    }
-	    else {
-		console.log("username and password don't match");
-		renderMainPage(req, res);
-	    }
-	});
-    }
-    else {
-	console.log("username or password didn't find from cookies");
-	renderMainPage(req, res);
-    }
+	    });
+	}
+	else {
+	    console.log("user not logged in or session is expired");
+	    renderMainPage(req, res);
+	}
+    });
 });
 
 router.get('/login', function(req, res) {
     var user = req.query.username;
     var pass = req.query.password;
 
-    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 0 } }, function(err, doc) {
+    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
 	if (err || doc == null) {
 	    throw err;
 	}
 	if (doc.length == 0) {
 	    console.log("username wasn't found from database");
-	    var msg = "Username " + user + " wasn't found from database"; 
-	    res.json({"status": "notok", "msg": msg}); 
+	    var msg = 
+	    res.json({"status": "notok", "msg": "Wrong username or password"}); 
             return;
 	}
-	console.log(doc[0].password + " == " + pass);
-	if (doc[0].password != req.query.password) {
-	    console.log("wrong password");
-	    var msg = "Password and username didn't match"; 
-	    res.json({"status": "notok", "msg": msg}); 
-            return;
-	}
-	res.cookie('username', user);
-	res.cookie('password', pass);
-	res.json({"status": "ok"}); 
+	var hash = doc[0].password;
+	var userid = doc[0]._id;
+	bcrypt.compare(pass, hash, function(err, result) {
+	    if (err) {
+		throw err;
+	    }
+	    if (!result) {
+		console.log("wrong password");
+		res.json({"status": "notok", "msg": "Wrong username or password"}); 
+		return;
+	    }
+	    var token = randomString();
+	    req.db.get('sessions').insert({ "token": token, "userid": userid, "created": new Date() }, function(err, doc) {
+		if (err || doc == null) {
+		    throw err;
+		}
+		res.cookie('token', token, { maxAge: req.config.sessionMaxAge * 1000, httpOnly: true });
+		res.json({"status": "ok"}); 
+	    });
+	});
     });
 });
 
@@ -71,10 +95,11 @@ router.get('/newuser', function(req, res) {
 });
 
 router.post('/adduser', function(req, res) {
-    var user = req.body.username;
-    var pass = req.body.password;
+    var body = req.body;
+    var user = body.username;
+    var pass = body.password;
 
-    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 0 } }, function(err, doc) {
+    req.db.get('users').find( { username: user }, { }, function(err, doc) {
 	if (err || doc == null) {
 	    throw err;
 	}
@@ -84,13 +109,24 @@ router.post('/adduser', function(req, res) {
 	    res.json({"status": "notok", "msg": msg}); 
             return;
 	}
-	req.db.get('users').insert(req.body, function(err, doc) {
+	bcrypt.hash(pass, 10, function(err, hash) {
 	    if (err || doc == null) {
 		throw err;
 	    }
-	    res.cookie('username', user);
-	    res.cookie('password', pass);
-	    res.json({"status": "ok"}); 
+	    body.password = hash;
+	    req.db.get('users').insert(body, function(err, doc) {
+		if (err || doc == null) {
+		    throw err;
+		}
+		var token = randomString();
+		req.db.get('sessions').insert({ "token": token, "userid": userid, "created": new Date() }, function(err, doc) {
+		    if (err || doc == null) {
+			throw err;
+		    }
+		    res.cookie('token', token, { maxAge: req.config.sessionMaxAge, httpOnly: true });
+		    res.json({"status": "ok"});
+		});
+	    });
 	});
     });
 });
@@ -99,71 +135,78 @@ router.post('/updateuser', function(req, res) {
     var user = req.body.username;
     var pass = req.body.password;
 
-    if (user != req.cookies.username) {
-	console.log("cookies.username and req.body.username are different");
-	console.log("user=" + user + " cookies.user=" + req.cookies.username);
-	res.json({"status": "notok", "msg": "cookies.username and req.body.username are different"}); 
-	return;
-    }
-    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 0 } }, function(err, doc) {
+    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 1 } }, function(err, doc) {
 	if (err || doc == null) {
 	    throw err;
 	}
 	if (doc.length == 0) {
 	    console.log("username wasn't found from database");
-	    var msg = "Username " + user + " wasn't found from database"; 
-	    res.json({"status": "notok", "msg": msg}); 
+	    res.json({"status": "notok", "msg": "Wrong password"}); 
             return;
 	}
-	if (doc[0].password != pass) {
-	    console.log("wrong password");
-	    var msg = "Wrong password"; 
-	    res.json({"status": "notok", "msg": msg}); 
-            return;
-	}
-	var d = req.body;
-	req.db.get('users').update( { "username": user },
-			   { "$set": { "fullname": d.fullname, "country": d.country,
-				       "state": d.state, "city": d.city } },
-			   function(err, result) {
-			       if (err) {
-				   throw err;
-			       }
-			       res.cookie('password', d.password);
-			       res.json({"status": "ok"}); 
-			   });
+	var hash = doc[0].password;
+	bcrypt.compare(pass, hash, function(err, result) {
+	    if (err) {
+		throw err;
+	    }
+	    if (!result) {
+		console.log("wrong password");
+		res.json({"status": "notok", "msg": "Wrong password"}); 
+		return;
+	    }
+	    var d = req.body;
+	    req.db.get('users').update( { "username": user },
+					{ "$set": { "fullname": d.fullname, "country": d.country,
+						    "state": d.state, "city": d.city } },
+					function(err, result) {
+					    if (err) {
+						throw err;
+					    }
+					    res.cookie('password', d.password);
+					    res.json({"status": "ok"}); 
+					});
+	});
     });
 });
 
 router.post('/updatepassword', function(req, res) {
-    var user = req.cookies.username;
+    var username = req.body.username;
     var oldpass = req.body.oldpassword;
     var newpass = req.body.newpassword;
 
-    req.db.get('users').find( { username: user }, { fields: {password: 1, _id: 0 } }, function(err, doc) {
+    req.db.get('users').find( { username: username }, { fields: {password: 1, _id: 0 } }, function(err, doc) {
 	if (err || doc == null) {
 	    throw err;
 	}
 	if (doc.length == 0) {
 	    console.log("username wasn't found from database");
-	    var msg = "Username " + user + " wasn't found from database"; 
-	    res.json({"status": "notok", "msg": msg}); 
+	    res.json({"status": "notok", "msg": "Wrong password"}); 
             return;
 	}
-	if (doc[0].password != oldpass) {
-	    console.log("wrong password");
-	    var msg = "Wrong password"; 
-	    res.json({"status": "notok", "msg": msg}); 
-            return;
-	}
-	req.db.get('users').update( { "username": user },
-			   { "$set": { "password": newpass } } , function(err, result) {
-			       if (err) {
-				   throw err;
-			       }
-			       res.cookie('password', newpass);
-			       res.json({"status": "ok"}); 
-			   });
+	var hash = doc[0].password;
+	bcrypt.compare(oldpass, hash, function(err, result) {
+	    if (err) {
+		throw err;
+	    }
+	    if (!result) {
+		console.log("wrong password");
+		res.json({"status": "notok", "msg": "Wrong password"}); 
+		return;
+	    }
+	    bcrypt.hash(newpass, 10, function(err, hash) {
+		if (err) {
+		    throw err;
+		}
+		req.db.get('users').update( { "username": username },
+					    { "$set": { "password": hash } } , function(err, result) {
+						if (err) {
+						    throw err;
+						}
+						res.cookie('password', newpass);
+						res.json({"status": "ok"}); 
+					    });
+	    });
+	});
     });
 });
 
