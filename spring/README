@@ -1,0 +1,21 @@
+INSTALL
+-------
+
+Install git, mongodb, gradle (version 4.10 or newer)
+
+Clone repository:
+  git clone https://github.com/vesapehkonen/jatrailmap.git
+
+Build:
+  cd jatrailmap/spring
+  <gradle-install-directory>/bin/gradle build
+  e.g: ~/gradle-4.10/bin/gradle build
+
+RUN
+---
+
+Start server:
+  java -jar build/libs/jatrailmap-0.1.0.jar
+
+Browser:
+  Start a browser with an address http://localhost:8080
