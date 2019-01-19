@@ -16,6 +16,7 @@ var users =   require('./routes/users');
 var groups =   require('./routes/groups');
 
 var geo = require('./geo');
+var config = require('./config');
 
 var app = express();
 
@@ -42,8 +43,10 @@ app.use(function(req, res, next) {
     console.log("cookies: ", req.cookies);
     console.log("query: ", req.query);
     console.log("body: ", req.body);
+
     req.db = db;
     req.geo = geo;
+    req.config = config;
     next();
 });
 
@@ -84,3 +87,7 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+
+// remove current TTL from sessions and set a new one
+db.get('sessions').dropIndex({"created": 1 });
+db.get('sessions').createIndex({"created": 1 }, { expireAfterSeconds: config.sessionMaxAge } );
