@@ -194,13 +194,13 @@ public class UserCtrlTest {
 	when(encoder.matches(anyString(), anyString())).thenReturn(false);
 	when(encoder.matches("password", hash)).thenReturn(true);
 
-	Response response = userctrl.updatepassword("username", "password", "new password", resp);
-	assertEquals("ok", response.getStatus());
-
-	response = userctrl.updatepassword("wrong username", "password", "new password", resp);
+	Response response = userctrl.updatepassword("wrong username", "password", "new password", resp);
 	assertEquals("notok", response.getStatus());
 
 	response = userctrl.updatepassword("username", "wrong password", "new password", resp);
 	assertEquals("notok", response.getStatus());
+
+	response = userctrl.updatepassword("username", "password", "new password", resp);
+	assertEquals("ok", response.getStatus());
     }   
 }
