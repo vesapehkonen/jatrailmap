@@ -124,8 +124,9 @@ function updatePassword(event) {
     }
 
     var data = {
+        'username': $('#inputUsername').val(),
         'oldpassword': $('#inputOldPassword').val(),
-        'newpassword': $('#inputNewPassword').val(),
+        'newpassword': $('#inputNewPassword').val()
     };
 
     $.ajax({
