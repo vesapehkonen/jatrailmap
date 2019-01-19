@@ -257,7 +257,8 @@ public class UserCtrl {
 	    log.error("Wrong password");
 	    return new Response("notok", "Wrong username or password");
 	}
-	user.setPassword(newpasswd);
+	hash = encoder.encode(newpasswd);
+	user.setPassword(hash);
 	if (userRep.save(user) == null) {
 	    log.error("Database error, the password wasn't updated");
 	    return new Response("notok", "Database error, the password wasn't updated");
