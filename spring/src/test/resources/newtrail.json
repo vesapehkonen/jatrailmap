@@ -1,0 +1,52 @@
+{
+  "newtrail": [
+    {
+      "type": "LocationCollection",
+      "locations": [
+        {
+          "timestamp": "2017-10-15T13:06:58-07:00",
+          "loc": {
+            "type": "Point",
+            "coordinates": [
+              "-121.70672724011888",
+              "45.69940694556894"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "PictureCollection",
+      "pictures": [
+        {
+          "timestamp": "55,2017-10-15T13:06:58-07:00",
+          "picturename": "PictureName",
+          "description": "this is description",
+          "filename": "C:\\fakepath\\gmc.jpg",
+          "file": "c29tZXRoaW5nCg==",
+          "loc": {
+            "type": "Point",
+            "coordinates": [
+              "-121.70672724011888",
+              "45.69940694556894",
+              "55"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "TrailInfo",
+      "access": "public",
+      "trailname": "TrailName",
+      "description": "this is description",
+      "date": "2017-10-15T13:06:58-07:00",
+      "locationname": "Portland"
+    },
+    {
+      "type": "UserInfo",
+      "username": "username",
+      "password": "password"
+    }
+  ]
+}
