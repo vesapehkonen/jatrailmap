@@ -88,13 +88,18 @@ function updatePermissions(event) {
 	      "Please uncheck group(s) or select \"Group\" permissions.");
 	return false;
     }
+    if (checked == false && access == 'group') {
+	alert('Please select at least one checkbox');
+	return false;
+    }
+
     var data = {
         'access': access,
         'groups': groups,
     };
 
     $.ajax({
-        type: 'POST',
+        type: 'PUT',
         data: data,
         url: '/trail/' + $('#inputTrailid').val() + '/permissions',
         dataType: 'JSON',
@@ -106,7 +111,7 @@ function updatePermissions(event) {
 		elem.style.color="white";
 		setTimeout(function() {
 		    document.getElementsByTagName('span')[0].innerHTML = "";
-		    window.location = '/trails/' + $('#inputTrailid').val();
+		    window.location = '/trail/' + $('#inputTrailid').val();
 		}, 3000);
 	    }
 	    else {
@@ -130,9 +135,8 @@ function updatePermissions(event) {
 
 function cancel(event) {
     event.preventDefault();
-    window.location = '/trails/' + $('#inputTrailid').val();
+    window.location = '/trail/' + $('#inputTrailid').val();
 }
-
 
 function deleteGroup(event) {
     event.preventDefault();
