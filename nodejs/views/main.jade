@@ -32,7 +32,7 @@ block content
       h2 Trails
       p
         each trail, i in trails
-          a(href="trails/#{trail._id}") #{trail.trailname}, #{trail.location}
+          a(href="trail/#{trail._id}") #{trail.date} #{trail.trailname}, #{trail.location}
           br
     #right
     script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
