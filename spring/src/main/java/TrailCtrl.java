@@ -177,7 +177,7 @@ public class TrailCtrl {
 	    return false;
 	}
 	Trail trail = trails.get(0);
-	if (verifyTrailAccess(trail, userid)) {
+	if (!verifyTrailAccess(trail, userid)) {
 	    return false;
 	}
 	// if the user is owner of the trail
@@ -199,8 +199,8 @@ public class TrailCtrl {
 	    }
 	    return false;
 	}
-	// if picture has public access
-	else if ("public".equals(access)) {
+	// if picture has public access or the access is not defined yet
+	else if (access == null || "public".equals(access)) {
 	    return true;
 	}
 	// all other cases, e.g: the user is not authenticated and the picture is not public
