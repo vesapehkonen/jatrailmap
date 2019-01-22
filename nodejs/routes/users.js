@@ -2,6 +2,14 @@ var express = require('express');
 var router = express.Router();
 const bcrypt = require('bcrypt');
 
+function convertDate(dateStr) {
+    if (dateStr) {
+	var date = new Date(dateStr);
+	return  (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
+    }
+    return null;
+}
+
 function randomString() {
     var count = 64;
     var chars = "abcdefghijklmopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -15,11 +23,28 @@ function randomString() {
 }
 
 function renderMainPage(req, res) {
-    req.db.get('trails').find( {access: 'public'}, {fields: { 'trailname':1, 'location':1 }},
-        function(err, doc) {
-	if (err || doc == null) { throw err; }
-	    res.render('main', { title: 'Just Another Trail Map', authenticated: false, trails: doc });
-	});
+    req.db.get('trails').find( {access: 'public'}, {fields: { 'trailname':1, 'location':1, date:1 }},
+    function(err, trails) {
+	if (err || trails == null) {
+	    throw err;
+	}
+	trails.sort(function(a, b) {
+	    if (a.date && b.date) { 
+		return new Date(b.date) - new Date(a.date);
+	    }
+	    else if (a.date && !b.date) {
+		return -1;
+	    }
+	    else if (b.date && !a.date) { 
+		return 1;
+	    }
+	    return 0;
+	});	    
+	for (var i=0; i<trails.length; i++) {
+	    trails[i].date = convertDate(trails[i].date);
+	}
+	res.render('main', { title: 'Just Another Trail Map', authenticated: false, trails: trails });
+    });
 }
 
 router.get('/logout', function(req, res) {
