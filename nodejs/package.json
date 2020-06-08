@@ -4,25 +4,25 @@
   "description": "Just Another Trail Map",
   "main": "app.js",
   "dependencies": {
-    "body-parser": "^1.18.2",
-    "cookie-parser": "^1.0.1",
-    "debug": "^0.7.4",
-    "express": "^4.0.0",
-    "pug": "*",
+    "bcrypt": "^4.0.1",
+    "body-parser": "*",
+    "bson": "*",
+    "cookie-parser": "*",
+    "debug": "*",
+    "express": "*",
+    "jade": "*",
     "mongodb": "^3.1.10",
     "mongoskin": "*",
     "monk": "*",
-    "morgan": "^1.0.1",
-    "static-favicon": "*",
-    "bcrypt": "^3.0.2",
-    "bson": "^4.0.1",
-    "node-gyp": "^3.8.0",
-    "jade": "*"  
+    "morgan": "*",
+    "node-gyp": "^7.0.0",
+    "pug": "*",
+    "static-favicon": "*"
   },
   "devDependencies": {},
   "scripts": {
-      "start": "nodejs ./bin/www",
-      "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node ./bin/www",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "MIT"

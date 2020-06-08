@@ -16,7 +16,7 @@ Default request body size is 102400 bytes, change it to bigger by adding line
 
   limit = 1024 * 1024 * 100;
 
-to the file node_modules/body-parser/node_modules/raw-body/index.js, before the line 33.
+to the file node_modules/raw-body/index.js, after the line 99.
 
 RUN
 ---
