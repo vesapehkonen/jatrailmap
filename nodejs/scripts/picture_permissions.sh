@@ -3,7 +3,8 @@
 # Change trail pictures' permissions
 
 #url="http://localhost:8080"
-url="http://localhost:3000"
+#url="http://localhost:3000"
+url="https://jatrailmap.com:443"
 
 if [ $# -lt 3 ]; then
   echo "usage: $0 username password trailid"
@@ -27,14 +28,22 @@ get_cookie() {
     echo $token
 }
 
-echo "curl -s -X GET -c $cookie_file $url/login?username=${user}&password=${pass}"
-curl -s -X GET -c $cookie_file "$url/login?username=${user}&password=${pass}"
+echo "curl -s -k -X GET -c $cookie_file $url/login?username=${user}&password=${pass}"
+curl -s -k -X GET -c $cookie_file "$url/login?username=${user}&password=${pass}"
+if [ $? -ne 0 ]; then
+    echo "curl failed";
+    exit 1
+fi
 echo ""
 
 token=$(get_cookie $cookie_file)
 
-echo "curl -s -X GET --cookie token=$token $url/trail/${trailid}/track"
-json=`curl -s -X GET --cookie token="$token" "$url/trail/${trailid}/track"`
+echo "curl -s -k -X GET --cookie token=$token $url/trail/${trailid}/track"
+json=`curl -s -k -X GET --cookie token="$token" "$url/trail/${trailid}/track"`
+if [ $? -ne 0 ]; then
+    echo "curl failed";
+    exit 1
+fi
 
 ids=`echo $json | jq -r '. | .pics[] | ._id, .imageid, .access, .picturename'`
 #echo $ids
@@ -89,8 +98,12 @@ for line in $ids; do
 	    read -p "Send request to update picture permissions [y/n]? " resp
 	    if [ $resp == "y" ]; then
 		echo "Yes"
-		echo "curl --globoff -d $data -X PUT --cookie token=$token $url/trail/${trailid}/picture/${picid}/permissions"
-		curl --globoff -d $data -X PUT --cookie token="$token" "$url/trail/${trailid}/picture/${picid}/permissions"
+		echo "curl -k --globoff -d $data -X PUT --cookie token=$token $url/trail/${trailid}/picture/${picid}/permissions"
+		curl -k --globoff -d $data -X PUT --cookie token="$token" "$url/trail/${trailid}/picture/${picid}/permissions"
+		if [ $? -ne 0 ]; then
+		    echo "curl failed";
+		    exit 1
+		fi
 	    else
 		echo "No"
 	    fi
