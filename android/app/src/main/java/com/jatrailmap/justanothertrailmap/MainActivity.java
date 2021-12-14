@@ -13,7 +13,7 @@ import android.os.Environment;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.provider.Settings;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -24,6 +24,11 @@ import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.os.Build;
+import android.Manifest;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import android.content.pm.PackageManager;
 
 import org.json.JSONObject;
 
@@ -44,6 +49,8 @@ import java.io.RandomAccessFile;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EmptyStackException;
+import java.lang.Thread;
+import androidx.core.content.FileProvider;
 
 public class MainActivity extends AppCompatActivity {
     public class Timer {
@@ -379,8 +386,9 @@ public class MainActivity extends AppCompatActivity {
     private File createImageFile()  {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "img_" + timeStamp + ".jpg";
-        File storageDir = Environment.getExternalStoragePublicDirectory(
-	       Environment.DIRECTORY_PICTURES);
+        //File storageDir = Environment.getExternalStoragePublicDirectory(
+	//       Environment.DIRECTORY_PICTURES);
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = new File(storageDir + "/" + imageFileName);
 
         // Save a file path for use with later
@@ -395,6 +403,16 @@ public class MainActivity extends AppCompatActivity {
         return image;
     }
 
+    private void checkPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            String permission = Manifest.permission.CAMERA;
+            if (ContextCompat.checkSelfPermission(super.getApplicationContext(), permission) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{permission}, 1);
+                android.os.SystemClock.sleep(4000);
+            }
+        }
+    }
+
     private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         // Ensure that there's a camera activity to handle the intent
@@ -404,16 +422,25 @@ public class MainActivity extends AppCompatActivity {
             Log.w(LOG, "There isn't a camera activity to handle the intent");
 	        return;
         }
-	    // Create the File where the photo should go
-	    File photoFile = null;
-	    if ((photoFile = createImageFile()) == null) {
+	// Create the File where the photo should go
+	File photoFile = null;
+	if ((photoFile = createImageFile()) == null) {
             Toast.makeText(getBaseContext(), "Couldn\'t create photo file!",
-                    Toast.LENGTH_SHORT).show();
-	        return;
-	    }
-	    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
-		    Uri.fromFile(photoFile));
-	    startActivityForResult(takePictureIntent, TAKE_PICTURE);
+			   Toast.LENGTH_SHORT).show();
+	    return;
+	}
+        //takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
+	Uri photoURI = FileProvider.getUriForFile(this,
+                                                  "com.jatrailmap.android.fileprovider",
+                                                  photoFile);
+	takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+	checkPermissions();
+	try {
+            startActivityForResult(takePictureIntent, TAKE_PICTURE);
+        } catch (Exception e) {
+            Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
+                           Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override

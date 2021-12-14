@@ -86,7 +86,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="70dp"
-        android:text="Send server"
+        android:text="Upload trail"
         android:id="@+id/button_send"
         android:layout_below="@+id/button_picture"
         android:textAppearance="?android:attr/textAppearanceLarge"
@@ -99,7 +99,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="70dp"
-        android:text="Delete"
+        android:text="Delete trail"
         android:id="@+id/button_delete"
         android:layout_below="@+id/button_send"
         android:textAppearance="?android:attr/textAppearanceLarge"

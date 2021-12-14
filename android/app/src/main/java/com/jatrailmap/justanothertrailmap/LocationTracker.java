@@ -11,6 +11,11 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
+import android.os.Build;
+import android.Manifest;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import android.content.pm.PackageManager;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -18,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.RandomAccessFile;
+import java.lang.Thread;
 
 /**
  * Created by vesa on 6/25/15.
@@ -44,7 +50,7 @@ public class LocationTracker implements LocationListener {
     }
 
     // Checks if external storage is available for read and write
-    public boolean isExternalStorageWritable() {
+    private boolean isExternalStorageWritable() {
         String state = Environment.getExternalStorageState();
         if (Environment.MEDIA_MOUNTED.equals(state)) {
             return true;
@@ -52,21 +58,40 @@ public class LocationTracker implements LocationListener {
         return false;
     }
 
+    private void checkPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            String permission = Manifest.permission.ACCESS_FINE_LOCATION;
+	    if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(mainActivity, new String[]{permission}, 1);
+                android.os.SystemClock.sleep(4000);
+            }
+        }
+    }
+
     // Start to get GPS coordinates
     public boolean start() {
         Log.i(LOG, "LocationTracker: start");
-        String line;
         if (!isExternalStorageWritable()) {
             Toast.makeText(context, "Unable to write external storage",
                     Toast.LENGTH_LONG).show();
             Log.w(LOG, "Unable to write external storage");
             return false;
         }
+	checkPermissions();
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
-        // Request coordinates on every 5 seconds and if location changes least 10 meters
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, this);
-
+        // Request coordinates on every 20 seconds and if location changes least 20 meters
+        try {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 20000, 20, this);
+        } catch (SecurityException ex) {
+            Log.e(LOG, "Fail to request location update: " + ex.getMessage());
+            Toast.makeText(context, new String("Fail to request location update: " + ex.getMessage()),
+                           Toast.LENGTH_LONG).show();
+        } catch (IllegalArgumentException ex) {
+            Log.e(LOG, "Location provider does not exist: " + ex.getMessage());
+            Toast.makeText(context, new String("Location provider does not exist: " + ex.getMessage()),
+                           Toast.LENGTH_LONG).show();
+        }
         state = State.active;
         return true;
     }
@@ -99,7 +124,18 @@ public class LocationTracker implements LocationListener {
             Log.w(LOG, "Unable to write external storage");
             return;
         }
-        Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+	Location loc = null;
+	try {
+	    loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        } catch (SecurityException ex) {
+            Log.e(LOG, "Fail to request location update: " + ex.getMessage());
+            Toast.makeText(context, new String("Fail to request location update: " + ex.getMessage()),
+                           Toast.LENGTH_LONG).show();
+        } catch (IllegalArgumentException ex) {
+            Log.e(LOG, "Location provider does not exist: " + ex.getMessage());
+            Toast.makeText(context, new String("Location provider does not exist: " + ex.getMessage()),
+                           Toast.LENGTH_LONG).show();
+        }
         if (loc == null) {
             loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
             if (loc == null) {
