@@ -26,6 +26,7 @@ Studio. It records the GPS coordinates of trails, and saves the GPS coordinates
 for photos, which have been taken at that time, then uploads them to the server.
 The mobile application files are located in an android folder.
 
+![JaTrailMap screenshot](./jatrailmap.png)
 
 Downloading
 -----------
