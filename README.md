@@ -1,77 +1,101 @@
-﻿
-Just Another Trail Map
-======================
+# Just Another Trail Map
 
-What is it?
------------
+Just Another Trail Map is a web and Android application for recording GPS trails and visualizing them with geotagged photos on an interactive map.
 
-Just Another Trail Map is a service which allows users to track their trails
-using a mobile phone, then upload the trails to a web-service. The user can then
-view their trails on a map. The service also allows users to take photos using
-their mobile phone, these are also showed on the map.
+![Screenshot](jatrailmap.png)
 
-A web application consists of a server and a client. The server is implemented
-using: JavaScript, Node.js, Express, Jade and Mongo database, and it provides a
-JSON REST Api. The client uses a web browser and it is implemented using
-JavaScript and jQuery. It uses the Google Maps Api to show routes and picture
-points on the map. The web application is located in nodejs directory which
-includes the following folders:
+---
 
-- routes: contains combinations of models and controllers
-- views: contains application views (Jade files)
-- public: contains the client's JavaScript and style-sheet files
+## Overview
 
-The mobile application is implemented on an Android phone using Java and Android
-Studio. It records the GPS coordinates of trails, and saves the GPS coordinates
-for photos, which have been taken at that time, then uploads them to the server.
-The mobile application files are located in an android folder.
+Just Another Trail Map allows users to:
 
-![JaTrailMap screenshot](./jatrailmap.png)
+- Record GPS trails using an Android mobile device  
+- Capture photos with location metadata  
+- Upload trails and photos to a web server  
+- View routes and photo points on an interactive map  
 
-Downloading
------------
+The system consists of a Node.js web application and an Android client.
 
-The latest version can be found on the Github server project page under
+---
 
-https://github.com/vesapehkonen/jatrailmap.
+## Architecture
 
-Download the project repository
- 
-git clone https://github.com/vesapehkonen/jatrailmap 
+### Web Application
 
+The backend provides a JSON REST API and handles trail storage and retrieval.
 
-Documentation
--------------
+**Technologies**
 
-Documentation is available on the project wiki page
+- Node.js  
+- Express  
+- MongoDB  
+- Jade (Pug) templates  
+- JavaScript / jQuery  
+- Google Maps API  
 
-https://github.com/vesapehkonen/jatrailmap/wiki. 
+**Project Structure**
 
+```
+nodejs/
+ ├── routes/   # Controllers and route logic
+ ├── views/    # Jade templates
+ └── public/   # Client-side scripts and styles
+```
 
-Installation
-------------
+---
 
-The web-application files are located in the directory jatrailmap/nodejs. Please
-see the README file there also. The Android application is built using Android
-Studio and the project files are located in jatrailmap/android directory.
+### Android Application
 
+The Android client records GPS data and photo locations, then uploads them to the server.
 
-Licensing
----------
+**Technologies**
 
-This project is licensed under the terms of the MIT license. Please see the file
-called LICENSE.txt.
+- Java  
+- Android Studio  
 
-  
-Contributing
-------------
+**Features**
 
-Contributions are welcome. You can contribute to the project by reporting
-issues, suggesting new features, or submitting pull requests.
+- GPS trail recording  
+- Photo geolocation  
+- Server synchronization  
 
+---
 
-Contacts
---------
+## Getting Started
 
-vesa.pehkonen@gmail.com
+Clone the repository:
 
+```bash
+git clone https://github.com/vesapehkonen/jatrailmap
+```
+
+---
+
+## Running the Web Application
+
+Navigate to the Node.js project:
+
+```bash
+cd jatrailmap/nodejs
+npm install
+npm start
+```
+
+---
+
+## Project Status
+
+This project was created as a learning / experimental project and is not actively maintained.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE.txt` for details.
+
+---
+
+## Contributing
+
+Contributions, ideas, and improvements are welcome via issues and pull requests.
