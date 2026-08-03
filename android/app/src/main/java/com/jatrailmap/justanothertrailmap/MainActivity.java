@@ -219,34 +219,34 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClick(View view) {
         final int id = view.getId();
-        switch (id) {
-            case R.id.button_start:
+        //switch (id) {
+	if (id ==  R.id.button_start) {
                 if (tracker.start()) {
                     state = STATE_TRACKING;
                     updateButtons();
 		    timer.start();
                 }
-                break;
+	}
 
-            case R.id.button_stop:
+	if (id == R.id.button_stop) {
                 tracker.stop();
     		    state = STATE_STOPPED;
 	    	    updateButtons();
 		        timer.stop();
-                break;
+	}
 
-            case R.id.button_picture:
+	if (id == R.id.button_picture) {
                 dispatchTakePictureIntent();
-                break;
+	}
 
-            case R.id.button_send:
+	if (id == R.id.button_send ) {
                 Intent intent = new Intent(this, TransferActivity.class);
                 intent.putExtra("locsFilename", getString(R.string.locations_filename));
                 intent.putExtra("picsFilename", getString(R.string.pictures_filename));
                 startActivityForResult(intent, TRANSFER_DATA);
-                break;
+	}
 
-            case R.id.button_delete:
+	if (id == R.id.button_delete) {
                 new AlertDialog.Builder(this)
                         .setTitle("Delete entry")
                         .setMessage("Are you sure you want to delete this entry?")
@@ -280,8 +280,7 @@ public class MainActivity extends AppCompatActivity {
                         })
                         .setIcon(android.R.drawable.ic_dialog_alert)
                         .show();
-                break;
-        }
+	}
     }
 
     @Override

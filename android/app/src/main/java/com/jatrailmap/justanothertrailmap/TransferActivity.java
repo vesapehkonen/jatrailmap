@@ -65,8 +65,8 @@ public class TransferActivity extends AppCompatActivity {
     public void onClick(View view) {
         String  url;
         final int id = view.getId();
-        switch (id) {
-            case R.id.button_send:
+        //switch (id) {
+	if (id == R.id.button_send) {
                 Log.i(LOG, "TransferActivity: button_send clicked");
                 url = ((EditText) findViewById(R.id.edit_server_url)).getText().toString();
                 username = ((EditText) findViewById(R.id.edit_username)).getText().toString();
@@ -101,16 +101,15 @@ public class TransferActivity extends AppCompatActivity {
                     Toast.makeText(getBaseContext(), "There isn't location data!",
                             Toast.LENGTH_LONG).show();
                 }
-                break;
+	}
 
-            case R.id.button_cancel:
+	if (id == R.id.button_cancel) {
                 Log.i(LOG, "TransferActivity: button_cancel clicked");
                 // return result to main activity
                 Intent intent = new Intent();
                 setResult(RESULT_CANCELED, intent);
                 finish();
-                break;
-        }
+	}
     }
 
     public void onBackPressed() {
