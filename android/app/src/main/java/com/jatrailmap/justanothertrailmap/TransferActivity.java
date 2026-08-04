@@ -18,6 +18,8 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -53,6 +55,14 @@ public class TransferActivity extends AppCompatActivity {
         locsFilename = extras.getString("locsFilename");
         picsFilename = extras.getString("picsFilename");
 	fillForm();
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                Log.i(LOG, "TransferActivity: back pressed");
+                setResult(RESULT_CANCELED, new Intent());
+                finish();
+            }
+        });
     }
 
     @Override
@@ -110,14 +120,6 @@ public class TransferActivity extends AppCompatActivity {
                 setResult(RESULT_CANCELED, intent);
                 finish();
 	}
-    }
-
-    public void onBackPressed() {
-        Log.i(LOG, "TransferActivity: onBackPressed");
-        // return result to main activity
-        Intent intent = new Intent();
-        setResult(RESULT_CANCELED, intent);
-        super.onBackPressed();
     }
 
     @Override
@@ -417,4 +419,3 @@ public class TransferActivity extends AppCompatActivity {
 	}
     }
 }
-

@@ -1,8 +1,10 @@
 package com.jatrailmap.justanothertrailmap;
 
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.location.Location;
 import android.content.Context;
@@ -24,11 +26,13 @@ import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.os.Build;
 import android.Manifest;
-import androidx.core.content.ContextCompat;
-import androidx.core.app.ActivityCompat;
 import android.content.pm.PackageManager;
+import android.os.Build;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONObject;
 
@@ -93,11 +97,42 @@ public class MainActivity extends AppCompatActivity {
     private Timer timer;
     private final String LOG = "mylog";
     private Context context;
-    private LocationTracker tracker = null;
     private int points = 0;
     private final int TAKE_PICTURE = 1, TRANSFER_DATA = 2;
     private final int STATE_INIT = 1, STATE_STOPPED = 2, STATE_TRACKING = 3;
     private int state;
+    private boolean trackingReceiverRegistered;
+    private final BroadcastReceiver trackingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (LocationTrackingService.ACTION_LOCATION_RECORDED.equals(intent.getAction())) {
+                locationChanged(true);
+            } else if (LocationTrackingService.ACTION_TRACKING_STOPPED.equals(intent.getAction())) {
+                locationChanged(false);
+            }
+        }
+    };
+    private final ActivityResultLauncher<String[]> locationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), grants -> {
+                if (Boolean.TRUE.equals(grants.get(Manifest.permission.ACCESS_FINE_LOCATION))) {
+                    startTracking();
+                } else {
+                    Toast.makeText(this, R.string.location_permission_denied,
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+    private final ActivityResultLauncher<String> cameraPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) {
+                    dispatchTakePictureIntent();
+                } else {
+                    Toast.makeText(this, R.string.camera_permission_denied,
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
+                    startTrackingService());
 
     private void resumeState() {
         File file = new File(getApplicationContext().getExternalFilesDir(null),
@@ -106,6 +141,10 @@ public class MainActivity extends AppCompatActivity {
             state = STATE_INIT;
             points = 0;
             timer.init(0);
+            if (LocationTrackingService.isTrackingRequested(this)) {
+                state = STATE_STOPPED;
+                requestLocationPermissionAndStartTracking();
+            }
             return;
         }
 		try {
@@ -130,12 +169,51 @@ public class MainActivity extends AppCompatActivity {
             Log.e(LOG, "exception", e);
    			Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
                     Toast.LENGTH_LONG).show();
-		}
-        if (state == STATE_TRACKING) {
-            tracker.start();
-            timer.start();
+        }
+        if (LocationTrackingService.isTrackingRequested(this)) {
+            state = STATE_STOPPED;
+            requestLocationPermissionAndStartTracking();
+        } else if (state == STATE_TRACKING) {
+            state = STATE_STOPPED;
         }
 	}
+
+    private void requestLocationPermissionAndStartTracking() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            startTracking();
+        } else {
+            locationPermissionLauncher.launch(new String[]{
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            });
+        }
+    }
+
+    private void startTracking() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        } else {
+            startTrackingService();
+        }
+    }
+
+    private void startTrackingService() {
+        Intent intent = new Intent(this, LocationTrackingService.class);
+        intent.setAction(LocationTrackingService.ACTION_START);
+        ContextCompat.startForegroundService(this, intent);
+        state = STATE_TRACKING;
+        updateButtons();
+        timer.start();
+    }
+
+    private void stopTrackingService() {
+        Intent intent = new Intent(this, LocationTrackingService.class);
+        intent.setAction(LocationTrackingService.ACTION_STOP);
+        startService(intent);
+    }
 
     private void saveState() {
         try {
@@ -192,14 +270,12 @@ public class MainActivity extends AppCompatActivity {
         Log.i(LOG, "onCreate() delete_this=" + delete_this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        registerTrackingReceiver();
         Context context = getApplicationContext();
         timer = new Timer((Chronometer) findViewById(R.id.chronometer));
         File file = new File(context.getExternalFilesDir(null),
                 getString(R.string.locations_filename));
 
-        tracker = new LocationTracker(getString(R.string.locations_filename),
-                getString(R.string.pictures_filename),
-                super.getApplicationContext(), this);
         resumeState();
         updateButtons();
     }
@@ -221,22 +297,18 @@ public class MainActivity extends AppCompatActivity {
         final int id = view.getId();
         //switch (id) {
 	if (id ==  R.id.button_start) {
-                if (tracker.start()) {
-                    state = STATE_TRACKING;
-                    updateButtons();
-		    timer.start();
-                }
+		requestLocationPermissionAndStartTracking();
 	}
 
 	if (id == R.id.button_stop) {
-                tracker.stop();
+		    stopTrackingService();
     		    state = STATE_STOPPED;
 	    	    updateButtons();
 		        timer.stop();
 	}
 
 	if (id == R.id.button_picture) {
-                dispatchTakePictureIntent();
+		requestCameraPermissionAndTakePicture();
 	}
 
 	if (id == R.id.button_send ) {
@@ -305,19 +377,18 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void onBackPressed() {
-        Log.i(LOG, "onBackPressed()");
-        if (state != STATE_STOPPED) {
-            // because we don't want to continue tracking, when we start next time
-            state = STATE_STOPPED;
-            timer.stop();
-        }
-        super.onBackPressed();
-    }
-
     protected void onStart() {
         Log.i(LOG, "onStart()");
         super.onStart();
+    }
+
+    private void registerTrackingReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(LocationTrackingService.ACTION_LOCATION_RECORDED);
+        filter.addAction(LocationTrackingService.ACTION_TRACKING_STOPPED);
+        ContextCompat.registerReceiver(
+                this, trackingReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+        trackingReceiverRegistered = true;
     }
 
     protected void onRestart() {
@@ -342,11 +413,10 @@ public class MainActivity extends AppCompatActivity {
 
     protected void onDestroy() {
         Log.i(LOG, "onDestroy()");
-        tracker.stop();
-        // don't set the state_stopped here, because if orientation caused onDestroy(),
-        // we want to continue immediately when app is started again
-        //state = STATE_STOPPED;
-        // timer.stop();
+        if (trackingReceiverRegistered) {
+            unregisterReceiver(trackingReceiver);
+            trackingReceiverRegistered = false;
+        }
         saveState();
         super.onDestroy();
     }
@@ -359,7 +429,6 @@ public class MainActivity extends AppCompatActivity {
         }
         else {
 	        // error, the location service doesn't work
-            tracker.stop();
 	        state = STATE_STOPPED;
 	        updateButtons();
 	        timer.stop();
@@ -402,13 +471,12 @@ public class MainActivity extends AppCompatActivity {
         return image;
     }
 
-    private void checkPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String permission = Manifest.permission.CAMERA;
-            if (ContextCompat.checkSelfPermission(super.getApplicationContext(), permission) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{permission}, 1);
-                android.os.SystemClock.sleep(4000);
-            }
+    private void requestCameraPermissionAndTakePicture() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            dispatchTakePictureIntent();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
         }
     }
 
@@ -433,7 +501,6 @@ public class MainActivity extends AppCompatActivity {
                                                   "com.jatrailmap.android.fileprovider",
                                                   photoFile);
 	takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-	checkPermissions();
 	try {
             startActivityForResult(takePictureIntent, TAKE_PICTURE);
         } catch (Exception e) {
@@ -449,7 +516,11 @@ public class MainActivity extends AppCompatActivity {
             case TAKE_PICTURE:
                 switch (resultCode) {
                     case RESULT_OK:
-                        tracker.savePicture(currentImagePath);
+                        Intent savePictureIntent = new Intent(this, LocationTrackingService.class);
+                        savePictureIntent.setAction(LocationTrackingService.ACTION_SAVE_PICTURE);
+                        savePictureIntent.putExtra(
+                                LocationTrackingService.EXTRA_IMAGE_PATH, currentImagePath);
+                        startService(savePictureIntent);
                         break;
                     case RESULT_CANCELED:
                         (new File(currentImagePath)).delete();

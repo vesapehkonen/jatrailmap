@@ -17,4 +17,11 @@
     <string name="edit_server_url">Server URL</string>
     <string name="default_server_url">https://jatrailmap.com/addtrail</string>
     <string name="form_state_filename">form_state.json</string>
+    <string name="location_permission_denied">Location permission is required to record a trail.</string>
+    <string name="camera_permission_denied">Camera permission is required to take a trail photo.</string>
+    <string name="tracking_notification_channel">Trail recording</string>
+    <string name="tracking_notification_channel_description">Shows when a trail is being recorded.</string>
+    <string name="tracking_notification_title">Recording trail</string>
+    <string name="tracking_notification_text">Location tracking is active.</string>
+    <string name="stop_tracking">Stop</string>
 </resources>

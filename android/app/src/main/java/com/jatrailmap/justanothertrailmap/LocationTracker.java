@@ -1,52 +1,51 @@
 package com.jatrailmap.justanothertrailmap;
 
-import android.app.Activity;
+import android.Manifest;
 import android.content.Context;
-import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
-import android.os.Build;
-import android.Manifest;
+
 import androidx.core.content.ContextCompat;
-import androidx.core.app.ActivityCompat;
-import android.content.pm.PackageManager;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.RandomAccessFile;
-import java.lang.Thread;
 
 /**
  * Created by vesa on 6/25/15.
  */
 public class LocationTracker implements LocationListener {
+    public interface Listener {
+        void onLocationRecorded();
+        void onTrackingStopped();
+    }
+
     private final String LOG = "mylog";
     private String locsFilename;
     private String picsFilename;
     private LocationManager locationManager;
     private Context context;
     private BufferedWriter writer = null;
-    private MainActivity mainActivity;
+    private Listener listener;
 
     private enum State {idle, active}
 
     ;
     private State state = State.idle;
 
-    public LocationTracker(String locs, String pics, Context ctx, MainActivity act) {
+    public LocationTracker(String locs, String pics, Context ctx, Listener listener) {
         locsFilename = locs;
         picsFilename = pics;
         context = ctx;
-        mainActivity = act;
+        this.listener = listener;
     }
 
     // Checks if external storage is available for read and write
@@ -58,16 +57,6 @@ public class LocationTracker implements LocationListener {
         return false;
     }
 
-    private void checkPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String permission = Manifest.permission.ACCESS_FINE_LOCATION;
-	    if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(mainActivity, new String[]{permission}, 1);
-                android.os.SystemClock.sleep(4000);
-            }
-        }
-    }
-
     // Start to get GPS coordinates
     public boolean start() {
         Log.i(LOG, "LocationTracker: start");
@@ -77,7 +66,11 @@ public class LocationTracker implements LocationListener {
             Log.w(LOG, "Unable to write external storage");
             return false;
         }
-	checkPermissions();
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.w(LOG, "Location permission is not granted");
+            return false;
+        }
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
         // Request coordinates on every 20 seconds and if location changes least 20 meters
@@ -85,12 +78,14 @@ public class LocationTracker implements LocationListener {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 20000, 20, this);
         } catch (SecurityException ex) {
             Log.e(LOG, "Fail to request location update: " + ex.getMessage());
-            Toast.makeText(context, new String("Fail to request location update: " + ex.getMessage()),
+            Toast.makeText(context, "Fail to request location update: " + ex.getMessage(),
                            Toast.LENGTH_LONG).show();
+            return false;
         } catch (IllegalArgumentException ex) {
             Log.e(LOG, "Location provider does not exist: " + ex.getMessage());
-            Toast.makeText(context, new String("Location provider does not exist: " + ex.getMessage()),
+            Toast.makeText(context, "Location provider does not exist: " + ex.getMessage(),
                            Toast.LENGTH_LONG).show();
+            return false;
         }
         state = State.active;
         return true;
@@ -127,6 +122,9 @@ public class LocationTracker implements LocationListener {
 	Location loc = null;
 	try {
 	    loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (loc == null) {
+                loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            }
         } catch (SecurityException ex) {
             Log.e(LOG, "Fail to request location update: " + ex.getMessage());
             Toast.makeText(context, new String("Fail to request location update: " + ex.getMessage()),
@@ -137,13 +135,10 @@ public class LocationTracker implements LocationListener {
                            Toast.LENGTH_LONG).show();
         }
         if (loc == null) {
-            loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            if (loc == null) {
-                Toast.makeText(context, "Location data is not available.",
-                        Toast.LENGTH_LONG).show();
-                Log.w(LOG, "Location data is not available.");
-                return;
-            }
+            Toast.makeText(context, "Location data is not available.",
+                    Toast.LENGTH_LONG).show();
+            Log.w(LOG, "Location data is not available.");
+            return;
         }
         File file = new File(context.getExternalFilesDir(null), picsFilename);
 
@@ -174,7 +169,7 @@ public class LocationTracker implements LocationListener {
         Log.i(LOG, line);
         //Toast.makeText(context, line, Toast.LENGTH_SHORT).show();
 
-        mainActivity.locationChanged(true);
+        listener.onLocationRecorded();
         boolean addComma = true;
         // write location point in one line and add comma, if it isn't first line
         try {
@@ -222,6 +217,6 @@ public class LocationTracker implements LocationListener {
         Log.w(LOG, "onProviderDisabled");
         Toast.makeText(context, "Gps is turned off!",
                 Toast.LENGTH_LONG).show();
-        mainActivity.locationChanged(false);
+        listener.onTrackingStopped();
     }
 }
