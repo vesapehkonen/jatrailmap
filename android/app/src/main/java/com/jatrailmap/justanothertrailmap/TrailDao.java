@@ -24,6 +24,12 @@ public interface TrailDao {
     @Query("SELECT * FROM trail_points ORDER BY id")
     List<TrailPointEntity> getPoints();
 
+    @Query("SELECT * FROM trail_points ORDER BY id DESC LIMIT 1")
+    TrailPointEntity getLatestPoint();
+
+    @Query("SELECT * FROM trail_points WHERE id > :afterId ORDER BY id")
+    List<TrailPointEntity> getPointsAfter(long afterId);
+
     @Query("SELECT * FROM trail_photos ORDER BY id")
     List<TrailPhotoEntity> getPhotos();
 

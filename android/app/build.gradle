@@ -38,5 +38,7 @@ dependencies {
     implementation('com.squareup.retrofit2:converter-gson:3.0.0')
     implementation('androidx.room:room-runtime:2.8.4')
     annotationProcessor('androidx.room:room-compiler:2.8.4')
+    implementation('org.mapsforge:mapsforge-map-android:0.25.0')
+    implementation('org.mapsforge:mapsforge-themes:0.25.0')
     testImplementation('junit:junit:4.13.2')
 }

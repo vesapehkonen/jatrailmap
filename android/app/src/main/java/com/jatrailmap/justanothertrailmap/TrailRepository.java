@@ -23,6 +23,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
 public final class TrailRepository {
+    public interface RouteCallback {
+        void onResult(List<TrailPointEntity> points, TrailPointEntity latestPoint);
+    }
+
     private static final String LOG = "mylog";
     private static final String MIGRATION_PREFERENCES = "trail_room_migration";
     private static final String MIGRATED = "json_files_migrated";
@@ -85,6 +89,26 @@ public final class TrailRepository {
     public int getPointCount() throws IOException {
         ensureLegacyDataMigrated();
         return dao.getPointCount();
+    }
+
+    public void getRouteUpdateAsync(long afterId, RouteCallback callback) {
+        IO_EXECUTOR.execute(() -> {
+            try {
+                ensureLegacyDataMigrated();
+                TrailPointEntity latestPoint = dao.getLatestPoint();
+                List<TrailPointEntity> points;
+                if (latestPoint == null) {
+                    points = Collections.emptyList();
+                } else if (latestPoint.id < afterId) {
+                    points = dao.getPoints();
+                } else {
+                    points = dao.getPointsAfter(afterId);
+                }
+                runOnMain(() -> callback.onResult(points, latestPoint));
+            } catch (IOException exception) {
+                Log.e(LOG, "Unable to read route", exception);
+            }
+        });
     }
 
     public void clearAll() throws IOException {

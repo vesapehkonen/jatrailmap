@@ -31,4 +31,15 @@
     <string name="upload_failed">Upload failed</string>
     <string name="upload_unknown_error">The upload could not be completed.</string>
     <string name="upload_in_progress">Upload pending</string>
+    <string name="map_not_selected">Select a Mapsforge .map file to use the map offline.</string>
+    <string name="select_offline_map">Select map</string>
+    <string name="recenter_map">My location</string>
+    <string name="map_importing">Importing offline map…</string>
+    <string name="map_import_failed">The selected file could not be opened as an offline map.</string>
+    <string name="time_label">Time:</string>
+    <string name="start_tracking">Start tracking</string>
+    <string name="stop_tracking_button">Stop tracking</string>
+    <string name="take_picture">Take picture</string>
+    <string name="upload_trail">Upload trail</string>
+    <string name="delete_trail">Delete trail</string>
 </resources>
