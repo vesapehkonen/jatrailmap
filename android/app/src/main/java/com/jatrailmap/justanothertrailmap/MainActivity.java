@@ -169,6 +169,14 @@ public class MainActivity extends AppCompatActivity {
             ((Button) findViewById(R.id.button_send)).setEnabled(false);
             ((Button) findViewById(R.id.button_delete)).setEnabled(false);
             break;
+        case UPLOADING:
+            ((Button) findViewById(R.id.button_start)).setText(R.string.upload_in_progress);
+            ((Button) findViewById(R.id.button_start)).setEnabled(false);
+            ((Button) findViewById(R.id.button_stop)).setEnabled(false);
+            ((Button) findViewById(R.id.button_picture)).setEnabled(false);
+            ((Button) findViewById(R.id.button_send)).setEnabled(false);
+            ((Button) findViewById(R.id.button_delete)).setEnabled(false);
+            break;
         }
         ((TextView) findViewById(R.id.text_locs))
                 .setText(getString(R.string.points) + snapshot.points);

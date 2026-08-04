@@ -10,7 +10,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 
 public final class RecordingStateStore {
-    public enum Status { INITIAL, STOPPED, TRACKING }
+    public enum Status { INITIAL, STOPPED, TRACKING, UPLOADING }
 
     public static final class Snapshot {
         public final Status status;
@@ -80,6 +80,23 @@ public final class RecordingStateStore {
     public synchronized void recordLocation() {
         int points = preferences.getInt(POINTS, 0);
         preferences.edit().putInt(POINTS, points + 1).apply();
+    }
+
+    public synchronized void markUploading() {
+        Snapshot snapshot = getSnapshot();
+        preferences.edit()
+                .putString(STATUS, Status.UPLOADING.name())
+                .putLong(ELAPSED_TIME, snapshot.elapsedTimeMs)
+                .remove(STARTED_AT)
+                .putBoolean(LEGACY_TRACKING_REQUESTED, false)
+                .apply();
+    }
+
+    public synchronized void uploadFailed() {
+        preferences.edit()
+                .putString(STATUS, Status.STOPPED.name())
+                .putBoolean(LEGACY_TRACKING_REQUESTED, false)
+                .apply();
     }
 
     public synchronized void reset() {

@@ -24,4 +24,11 @@
     <string name="tracking_notification_title">Recording trail</string>
     <string name="tracking_notification_text">Location tracking is active.</string>
     <string name="stop_tracking">Stop</string>
+    <string name="upload_required_fields">Please enter a username, password, and trail name.</string>
+    <string name="upload_https_required">Enter a valid HTTPS server URL.</string>
+    <string name="upload_no_locations">There is no location data to upload.</string>
+    <string name="upload_queued">Upload queued. It will retry when a network is available.</string>
+    <string name="upload_failed">Upload failed</string>
+    <string name="upload_unknown_error">The upload could not be completed.</string>
+    <string name="upload_in_progress">Upload pending</string>
 </resources>

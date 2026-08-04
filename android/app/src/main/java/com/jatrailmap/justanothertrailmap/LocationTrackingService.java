@@ -69,6 +69,11 @@ public class LocationTrackingService extends Service implements LocationTracker.
         if (tracking) {
             return;
         }
+        if (recordingStateStore.getSnapshot().status == RecordingStateStore.Status.UPLOADING) {
+            stopSelf();
+            broadcast(ACTION_TRACKING_STOPPED);
+            return;
+        }
 
         int foregroundServiceType = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 ? ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
