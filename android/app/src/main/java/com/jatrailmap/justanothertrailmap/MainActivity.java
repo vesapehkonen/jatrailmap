@@ -58,58 +58,33 @@ import androidx.core.content.FileProvider;
 
 public class MainActivity extends AppCompatActivity {
     public class Timer {
-	    private Chronometer chronometer;
-	    private long timeWhenStopped;
-        private boolean running;
+        private final Chronometer chronometer;
 
-	    public Timer(Chronometer c) {
-	        chronometer = c;
-            running = false;
-	    }
-	    public void start() {
-            running = true;
-	        chronometer.setBase(SystemClock.elapsedRealtime() - timeWhenStopped);
-	        chronometer.start();
-	    }
-	    public void stop() {
-            if (!running) {
-                return;
-            }
-            running = false;
-	        timeWhenStopped = SystemClock.elapsedRealtime() - chronometer.getBase();
-	        chronometer.stop();
-	    }
-        public void init(long time) {
-            running = false;
-            timeWhenStopped = time;
-            chronometer.setBase(SystemClock.elapsedRealtime() - timeWhenStopped);
+        public Timer(Chronometer chronometer) {
+            this.chronometer = chronometer;
         }
-        public long get() {
+
+        public void render(long elapsedTimeMs, boolean running) {
+            chronometer.setBase(SystemClock.elapsedRealtime() - elapsedTimeMs);
             if (running) {
-                return SystemClock.elapsedRealtime() - chronometer.getBase();
+                chronometer.start();
             } else {
-                return timeWhenStopped;
+                chronometer.stop();
             }
         }
     }
 
     private int delete_this = 0;
     private Timer timer;
+    private RecordingStateStore recordingStateStore;
     private final String LOG = "mylog";
     private Context context;
-    private int points = 0;
     private final int TAKE_PICTURE = 1, TRANSFER_DATA = 2;
-    private final int STATE_INIT = 1, STATE_STOPPED = 2, STATE_TRACKING = 3;
-    private int state;
     private boolean trackingReceiverRegistered;
     private final BroadcastReceiver trackingReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (LocationTrackingService.ACTION_LOCATION_RECORDED.equals(intent.getAction())) {
-                locationChanged(true);
-            } else if (LocationTrackingService.ACTION_TRACKING_STOPPED.equals(intent.getAction())) {
-                locationChanged(false);
-            }
+            refreshUi();
         }
     };
     private final ActivityResultLauncher<String[]> locationPermissionLauncher =
@@ -133,50 +108,6 @@ public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
                     startTrackingService());
-
-    private void resumeState() {
-        File file = new File(getApplicationContext().getExternalFilesDir(null),
-                getString(R.string.state_filename));
-        if (!file.exists()) {
-            state = STATE_INIT;
-            points = 0;
-            timer.init(0);
-            if (LocationTrackingService.isTrackingRequested(this)) {
-                state = STATE_STOPPED;
-                requestLocationPermissionAndStartTracking();
-            }
-            return;
-        }
-		try {
-			InputStreamReader reader= new InputStreamReader(new FileInputStream(file));
-
-			char[] buf= new char[100];
-			String line = "";
-			int bytesRead;
-
-			while ((bytesRead = reader.read(buf, 0, 100)) > 0) {
-				String readstring=String.copyValueOf(buf, 0, bytesRead);
-				line += readstring;
-			}
-			reader.close();
-            JSONObject json = new JSONObject(line);
-            state = json.getInt("state");
-            points = json.getInt("points");
-            timer.init(json.getInt("timer"));
-	    currentImagePath = json.getString("currentImagePath");
-		}
-        catch (Exception e) {
-            Log.e(LOG, "exception", e);
-   			Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
-        }
-        if (LocationTrackingService.isTrackingRequested(this)) {
-            state = STATE_STOPPED;
-            requestLocationPermissionAndStartTracking();
-        } else if (state == STATE_TRACKING) {
-            state = STATE_STOPPED;
-        }
-	}
 
     private void requestLocationPermissionAndStartTracking() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -204,9 +135,6 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, LocationTrackingService.class);
         intent.setAction(LocationTrackingService.ACTION_START);
         ContextCompat.startForegroundService(this, intent);
-        state = STATE_TRACKING;
-        updateButtons();
-        timer.start();
     }
 
     private void stopTrackingService() {
@@ -215,52 +143,36 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
     }
 
-    private void saveState() {
-        try {
-            File file = new File(getApplicationContext().getExternalFilesDir(null),
-                    getString(R.string.state_filename));
-            OutputStreamWriter outputWriter = new OutputStreamWriter(new FileOutputStream(file, false));
-            outputWriter.write("{ state: \"" + state +
-			       "\", points: \"" + points +
-			       "\" , timer: \"" + timer.get() +
-			       "\", currentImagePath: \"" + currentImagePath + "\"}");
-            outputWriter.close();
-        }
-        catch (Exception e) {
-            Log.e(LOG, "exception", e);
-            Toast.makeText(getBaseContext(), "Exception: " + e.getMessage(),
-                   Toast.LENGTH_LONG).show();
-		}
-	}
-
-    private void updateButtons() {
-	switch (state) {
-        case STATE_INIT:
+    private void refreshUi() {
+        RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+        switch (snapshot.status) {
+        case INITIAL:
             ((Button) findViewById(R.id.button_start)).setText("Start tracking");
             ((Button) findViewById(R.id.button_start)).setEnabled(true);
             ((Button) findViewById(R.id.button_stop)).setEnabled(false);
             ((Button) findViewById(R.id.button_picture)).setEnabled(false);
             ((Button) findViewById(R.id.button_send)).setEnabled(false);
             ((Button) findViewById(R.id.button_delete)).setEnabled(false);
-	    break;
-        case STATE_STOPPED:
+            break;
+        case STOPPED:
             ((Button) findViewById(R.id.button_start)).setText("Continue tracking");
             ((Button) findViewById(R.id.button_start)).setEnabled(true);
             ((Button) findViewById(R.id.button_stop)).setEnabled(false);
             ((Button) findViewById(R.id.button_picture)).setEnabled(false);
             ((Button) findViewById(R.id.button_send)).setEnabled(true);
             ((Button) findViewById(R.id.button_delete)).setEnabled(true);
-	    break;
-        case STATE_TRACKING:
+            break;
+        case TRACKING:
             ((Button) findViewById(R.id.button_start)).setEnabled(false);
             ((Button) findViewById(R.id.button_stop)).setEnabled(true);
             ((Button) findViewById(R.id.button_picture)).setEnabled(true);
             ((Button) findViewById(R.id.button_send)).setEnabled(false);
             ((Button) findViewById(R.id.button_delete)).setEnabled(false);
-	        break;
+            break;
         }
-	    ((TextView) findViewById(R.id.text_locs)).
-	        setText(getString(R.string.points) + Integer.toString(points));
+        ((TextView) findViewById(R.id.text_locs))
+                .setText(getString(R.string.points) + snapshot.points);
+        timer.render(snapshot.elapsedTimeMs, snapshot.isTracking());
     }
 
     // Starts the timer and sets states of buttons depending on the existence of the location file
@@ -270,19 +182,22 @@ public class MainActivity extends AppCompatActivity {
         Log.i(LOG, "onCreate() delete_this=" + delete_this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        registerTrackingReceiver();
         Context context = getApplicationContext();
         timer = new Timer((Chronometer) findViewById(R.id.chronometer));
-        File file = new File(context.getExternalFilesDir(null),
-                getString(R.string.locations_filename));
-
-        resumeState();
-        updateButtons();
+        recordingStateStore = new RecordingStateStore(context);
+        registerTrackingReceiver();
+        if (savedInstanceState != null) {
+            currentImagePath = savedInstanceState.getString("currentImagePath", "");
+        }
+        refreshUi();
+        if (recordingStateStore.getSnapshot().isTracking()) {
+            requestLocationPermissionAndStartTracking();
+        }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
-        //savedInstanceState.putLong("param", 100);
+        savedInstanceState.putString("currentImagePath", currentImagePath);
         super.onSaveInstanceState(savedInstanceState);
         Log.i(LOG, "MainActivity: onSaveInstanceState()");
     }
@@ -302,9 +217,6 @@ public class MainActivity extends AppCompatActivity {
 
 	if (id == R.id.button_stop) {
 		    stopTrackingService();
-    		    state = STATE_STOPPED;
-	    	    updateButtons();
-		        timer.stop();
 	}
 
 	if (id == R.id.button_picture) {
@@ -338,10 +250,8 @@ public class MainActivity extends AppCompatActivity {
                                     file.delete();
                                     Log.i(LOG, getString(R.string.pictures_filename) + " deleted");
                                 }
-				points = 0;
-				state = STATE_INIT;
-				updateButtons();
-				timer.init(0);
+                                recordingStateStore.reset();
+                                refreshUi();
                             }
                         })
                         .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
@@ -399,6 +309,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Log.i(LOG, "onResume()");
         super.onResume();
+        refreshUi();
     }
 
     protected void onPause() {
@@ -417,22 +328,7 @@ public class MainActivity extends AppCompatActivity {
             unregisterReceiver(trackingReceiver);
             trackingReceiverRegistered = false;
         }
-        saveState();
         super.onDestroy();
-    }
-
-    public void locationChanged(boolean status) {
-        if (status) {
-            points++;
-            ((TextView) findViewById(R.id.text_locs)).
-                    setText(getString(R.string.points) + Integer.toString(points));
-        }
-        else {
-	        // error, the location service doesn't work
-	        state = STATE_STOPPED;
-	        updateButtons();
-	        timer.stop();
-        }
     }
 
     private void showDialog(String title, String msg) {
@@ -532,10 +428,8 @@ public class MainActivity extends AppCompatActivity {
                 switch (resultCode) {
                     case RESULT_OK:
                         Log.i(LOG, "onActivityResult: RESULT_OK");
-			            timer.init(0);
-                        points = 0;
-			            state = STATE_INIT;
-			            updateButtons();
+                        recordingStateStore.reset();
+                        refreshUi();
                         showDialog("Information", "Trail data was sent successfully");
                         break;
                     case RESULT_CANCELED:

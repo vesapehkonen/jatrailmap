@@ -6,7 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.content.Context;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
@@ -32,28 +31,16 @@ public class LocationTrackingService extends Service implements LocationTracker.
     private static final String LOG = "mylog";
     private static final String CHANNEL_ID = "trail_tracking";
     private static final int NOTIFICATION_ID = 1;
-    private static final String PREFERENCES = "location_tracking_service";
-    private static final String TRACKING_REQUESTED = "tracking_requested";
 
     private LocationTracker tracker;
+    private RecordingStateStore recordingStateStore;
     private boolean tracking;
-
-    public static boolean isTrackingRequested(Context context) {
-        return context.getSharedPreferences(PREFERENCES, MODE_PRIVATE)
-                .getBoolean(TRACKING_REQUESTED, false);
-    }
-
-    private void setTrackingRequested(boolean requested) {
-        getSharedPreferences(PREFERENCES, MODE_PRIVATE)
-                .edit()
-                .putBoolean(TRACKING_REQUESTED, requested)
-                .apply();
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        recordingStateStore = new RecordingStateStore(this);
         tracker = new LocationTracker(
                 getString(R.string.locations_filename),
                 getString(R.string.pictures_filename),
@@ -94,10 +81,11 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
         if (tracker.start()) {
             tracking = true;
-            setTrackingRequested(true);
+            recordingStateStore.startTracking();
+            broadcast(ACTION_LOCATION_RECORDED);
             Log.i(LOG, "Location tracking service started");
         } else {
-            setTrackingRequested(false);
+            recordingStateStore.stopTracking();
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
             stopSelf();
             broadcast(ACTION_TRACKING_STOPPED);
@@ -107,7 +95,7 @@ public class LocationTrackingService extends Service implements LocationTracker.
     private void stopTracking() {
         tracker.stop();
         tracking = false;
-        setTrackingRequested(false);
+        recordingStateStore.stopTracking();
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
         stopSelf();
         broadcast(ACTION_TRACKING_STOPPED);
@@ -162,13 +150,14 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
     @Override
     public void onLocationRecorded() {
+        recordingStateStore.recordLocation();
         broadcast(ACTION_LOCATION_RECORDED);
     }
 
     @Override
     public void onTrackingStopped() {
         tracking = false;
-        setTrackingRequested(false);
+        recordingStateStore.stopTracking();
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
         stopSelf();
         broadcast(ACTION_TRACKING_STOPPED);
