@@ -38,7 +38,8 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 
 import org.mapsforge.core.graphics.Bitmap;
-import org.mapsforge.core.graphics.Color;
+import org.mapsforge.core.graphics.Cap;
+import org.mapsforge.core.graphics.Join;
 import org.mapsforge.core.graphics.Paint;
 import org.mapsforge.core.graphics.Style;
 import org.mapsforge.core.model.BoundingBox;
@@ -50,6 +51,7 @@ import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.overlay.Marker;
+import org.mapsforge.map.layer.overlay.Circle;
 import org.mapsforge.map.layer.overlay.Polyline;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
@@ -113,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
     private TileCache tileCache;
     private MapDataStore mapDataStore;
     private Marker locationMarker;
+    private Circle accuracyCircle;
     private Polyline routePolyline;
     private long lastRenderedPointId;
     private LatLong latestLocation;
@@ -123,9 +126,12 @@ public class MainActivity extends AppCompatActivity {
     private boolean automaticMapSelectionInProgress;
     private long lastCoverageCheckPointId;
     private boolean mainActivityResumed;
+    private boolean hasLiveGpsFix;
+    private Float liveGpsAccuracyMeters;
     private final BroadcastReceiver trackingReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            updateGpsState(intent);
             refreshUi();
             refreshMapRoute();
         }
@@ -202,42 +208,61 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshUi() {
         RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+        Button startButton = findViewById(R.id.button_start);
+        Button stopButton = findViewById(R.id.button_stop);
+        Button pictureButton = findViewById(R.id.button_picture);
+        Button sendButton = findViewById(R.id.button_send);
+        Button deleteButton = findViewById(R.id.button_delete);
+        TextView status = findViewById(R.id.text_recording_status);
+        TextView summary = findViewById(R.id.text_recording_summary);
         switch (snapshot.status) {
         case INITIAL:
-            ((Button) findViewById(R.id.button_start)).setText("Start tracking");
-            ((Button) findViewById(R.id.button_start)).setEnabled(true);
-            ((Button) findViewById(R.id.button_stop)).setEnabled(false);
-            ((Button) findViewById(R.id.button_picture)).setEnabled(false);
-            ((Button) findViewById(R.id.button_send)).setEnabled(false);
-            ((Button) findViewById(R.id.button_delete)).setEnabled(false);
+            status.setText(R.string.recording_status_ready);
+            summary.setText(R.string.recording_summary_ready);
+            startButton.setText(R.string.start_recording);
+            startButton.setVisibility(View.VISIBLE);
+            startButton.setEnabled(true);
+            stopButton.setVisibility(View.GONE);
+            pictureButton.setEnabled(false);
+            sendButton.setEnabled(false);
+            deleteButton.setEnabled(false);
             break;
         case STOPPED:
-            ((Button) findViewById(R.id.button_start)).setText("Continue tracking");
-            ((Button) findViewById(R.id.button_start)).setEnabled(true);
-            ((Button) findViewById(R.id.button_stop)).setEnabled(false);
-            ((Button) findViewById(R.id.button_picture)).setEnabled(false);
-            ((Button) findViewById(R.id.button_send)).setEnabled(true);
-            ((Button) findViewById(R.id.button_delete)).setEnabled(true);
+            status.setText(R.string.recording_status_paused);
+            summary.setText(R.string.recording_summary_paused);
+            startButton.setText(R.string.continue_recording);
+            startButton.setVisibility(View.VISIBLE);
+            startButton.setEnabled(true);
+            stopButton.setVisibility(View.GONE);
+            pictureButton.setEnabled(false);
+            sendButton.setEnabled(true);
+            deleteButton.setEnabled(true);
             break;
         case TRACKING:
-            ((Button) findViewById(R.id.button_start)).setEnabled(false);
-            ((Button) findViewById(R.id.button_stop)).setEnabled(true);
-            ((Button) findViewById(R.id.button_picture)).setEnabled(true);
-            ((Button) findViewById(R.id.button_send)).setEnabled(false);
-            ((Button) findViewById(R.id.button_delete)).setEnabled(false);
+            status.setText(R.string.recording_status_active);
+            summary.setText(R.string.recording_summary_active);
+            startButton.setVisibility(View.GONE);
+            stopButton.setVisibility(View.VISIBLE);
+            stopButton.setEnabled(true);
+            pictureButton.setEnabled(true);
+            sendButton.setEnabled(false);
+            deleteButton.setEnabled(false);
             break;
         case UPLOADING:
-            ((Button) findViewById(R.id.button_start)).setText(R.string.upload_in_progress);
-            ((Button) findViewById(R.id.button_start)).setEnabled(false);
-            ((Button) findViewById(R.id.button_stop)).setEnabled(false);
-            ((Button) findViewById(R.id.button_picture)).setEnabled(false);
-            ((Button) findViewById(R.id.button_send)).setEnabled(false);
-            ((Button) findViewById(R.id.button_delete)).setEnabled(false);
+            status.setText(R.string.recording_status_uploading);
+            summary.setText(R.string.recording_summary_uploading);
+            startButton.setText(R.string.upload_in_progress);
+            startButton.setVisibility(View.VISIBLE);
+            startButton.setEnabled(false);
+            stopButton.setVisibility(View.GONE);
+            pictureButton.setEnabled(false);
+            sendButton.setEnabled(false);
+            deleteButton.setEnabled(false);
             break;
         }
-        ((TextView) findViewById(R.id.text_locs))
-                .setText(getString(R.string.points) + snapshot.points);
+        ((TextView) findViewById(R.id.text_locs)).setText(String.valueOf(snapshot.points));
         timer.render(snapshot.elapsedTimeMs, snapshot.isTracking());
+        renderGpsStatus(snapshot);
     }
 
     // Starts the timer and sets states of buttons depending on the existence of the location file
@@ -261,6 +286,10 @@ public class MainActivity extends AppCompatActivity {
         registerTrackingReceiver();
         if (savedInstanceState != null) {
             currentImagePath = savedInstanceState.getString("currentImagePath", "");
+            hasLiveGpsFix = savedInstanceState.getBoolean("hasLiveGpsFix", false);
+            if (savedInstanceState.containsKey("liveGpsAccuracyMeters")) {
+                liveGpsAccuracyMeters = savedInstanceState.getFloat("liveGpsAccuracyMeters");
+            }
         }
         refreshUi();
         refreshMapRoute();
@@ -272,6 +301,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
         savedInstanceState.putString("currentImagePath", currentImagePath);
+        savedInstanceState.putBoolean("hasLiveGpsFix", hasLiveGpsFix);
+        if (liveGpsAccuracyMeters != null) {
+            savedInstanceState.putFloat("liveGpsAccuracyMeters", liveGpsAccuracyMeters);
+        }
         super.onSaveInstanceState(savedInstanceState);
         Log.i(LOG, "MainActivity: onSaveInstanceState()");
     }
@@ -358,6 +391,7 @@ public class MainActivity extends AppCompatActivity {
         IntentFilter filter = new IntentFilter();
         filter.addAction(LocationTrackingService.ACTION_LOCATION_RECORDED);
         filter.addAction(LocationTrackingService.ACTION_TRACKING_STOPPED);
+        filter.addAction(LocationTrackingService.ACTION_GPS_SEARCHING);
         ContextCompat.registerReceiver(
                 this, trackingReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
         trackingReceiverRegistered = true;
@@ -536,9 +570,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         Paint routePaint = AndroidGraphicFactory.INSTANCE.createPaint();
-        routePaint.setColor(Color.BLUE);
+        routePaint.setColor(AndroidGraphicFactory.INSTANCE.createColor(255, 27, 94, 32));
         routePaint.setStyle(Style.STROKE);
         routePaint.setStrokeWidth(5 * getResources().getDisplayMetrics().density);
+        routePaint.setStrokeCap(Cap.ROUND);
+        routePaint.setStrokeJoin(Join.ROUND);
         routePolyline = new Polyline(routePaint, AndroidGraphicFactory.INSTANCE);
         mapView.getLayerManager().getLayers().add(routePolyline);
     }
@@ -561,6 +597,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showLocationMarker() {
+        updateAccuracyCircle();
         if (locationMarker == null) {
             Drawable drawable = ResourcesCompat.getDrawable(
                     getResources(), R.drawable.map_location_marker, getTheme());
@@ -574,6 +611,75 @@ public class MainActivity extends AppCompatActivity {
             locationMarker.setLatLong(latestLocation);
         }
         mapView.getLayerManager().redrawLayers();
+    }
+
+    private void updateGpsState(Intent intent) {
+        String action = intent.getAction();
+        if (LocationTrackingService.ACTION_LOCATION_RECORDED.equals(action)) {
+            hasLiveGpsFix = true;
+            liveGpsAccuracyMeters = intent.getBooleanExtra(
+                    LocationTrackingService.EXTRA_HAS_ACCURACY, false)
+                    ? intent.getFloatExtra(LocationTrackingService.EXTRA_ACCURACY_METERS, 0)
+                    : null;
+        } else if (LocationTrackingService.ACTION_GPS_SEARCHING.equals(action)
+                || LocationTrackingService.ACTION_TRACKING_STOPPED.equals(action)) {
+            hasLiveGpsFix = false;
+            liveGpsAccuracyMeters = null;
+        }
+    }
+
+    private void renderGpsStatus(RecordingStateStore.Snapshot snapshot) {
+        TextView gpsStatus = findViewById(R.id.text_gps_status);
+        if (!snapshot.isTracking()) {
+            gpsStatus.setText(R.string.gps_inactive);
+            hideAccuracyCircle();
+        } else if (!hasLiveGpsFix) {
+            gpsStatus.setText(R.string.gps_searching);
+            hideAccuracyCircle();
+        } else if (liveGpsAccuracyMeters == null) {
+            gpsStatus.setText(R.string.gps_fix);
+        } else if (liveGpsAccuracyMeters <= 10) {
+            gpsStatus.setText(getString(
+                    R.string.gps_accuracy_strong, liveGpsAccuracyMeters));
+        } else if (liveGpsAccuracyMeters <= 30) {
+            gpsStatus.setText(getString(
+                    R.string.gps_accuracy_good, liveGpsAccuracyMeters));
+        } else {
+            gpsStatus.setText(getString(
+                    R.string.gps_accuracy_weak, liveGpsAccuracyMeters));
+        }
+    }
+
+    private void updateAccuracyCircle() {
+        if (!hasLiveGpsFix || liveGpsAccuracyMeters == null || latestLocation == null) {
+            hideAccuracyCircle();
+            return;
+        }
+        if (accuracyCircle == null) {
+            Paint fill = AndroidGraphicFactory.INSTANCE.createPaint();
+            fill.setColor(AndroidGraphicFactory.INSTANCE.createColor(45, 21, 101, 192));
+            fill.setStyle(Style.FILL);
+            Paint stroke = AndroidGraphicFactory.INSTANCE.createPaint();
+            stroke.setColor(AndroidGraphicFactory.INSTANCE.createColor(170, 21, 101, 192));
+            stroke.setStyle(Style.STROKE);
+            stroke.setStrokeWidth(2 * getResources().getDisplayMetrics().density);
+            accuracyCircle = new Circle(
+                    latestLocation, Math.max(1, liveGpsAccuracyMeters), fill, stroke);
+            int routeIndex = routePolyline == null
+                    ? mapView.getLayerManager().getLayers().size()
+                    : mapView.getLayerManager().getLayers().indexOf(routePolyline);
+            mapView.getLayerManager().getLayers().add(routeIndex, accuracyCircle);
+        } else {
+            accuracyCircle.setLatLong(latestLocation);
+            accuracyCircle.setRadius(Math.max(1, liveGpsAccuracyMeters));
+            accuracyCircle.setVisible(true, false);
+        }
+    }
+
+    private void hideAccuracyCircle() {
+        if (accuracyCircle != null) {
+            accuracyCircle.setVisible(false, true);
+        }
     }
 
     private void centerOnLatestLocation() {

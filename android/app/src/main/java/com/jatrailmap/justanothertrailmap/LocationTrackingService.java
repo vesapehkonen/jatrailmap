@@ -27,7 +27,11 @@ public class LocationTrackingService extends Service implements LocationTracker.
             "com.jatrailmap.justanothertrailmap.action.LOCATION_RECORDED";
     public static final String ACTION_TRACKING_STOPPED =
             "com.jatrailmap.justanothertrailmap.action.TRACKING_STOPPED";
+    public static final String ACTION_GPS_SEARCHING =
+            "com.jatrailmap.justanothertrailmap.action.GPS_SEARCHING";
     public static final String EXTRA_IMAGE_PATH = "imagePath";
+    public static final String EXTRA_HAS_ACCURACY = "hasAccuracy";
+    public static final String EXTRA_ACCURACY_METERS = "accuracyMeters";
 
     private static final String LOG = "mylog";
     private static final String CHANNEL_ID = "trail_tracking";
@@ -86,7 +90,7 @@ public class LocationTrackingService extends Service implements LocationTracker.
         if (tracker.start()) {
             tracking = true;
             recordingStateStore.startTracking();
-            broadcast(ACTION_LOCATION_RECORDED);
+            broadcast(ACTION_GPS_SEARCHING);
             Log.i(LOG, "Location tracking service started");
         } else {
             recordingStateStore.stopTracking();
@@ -161,7 +165,7 @@ public class LocationTrackingService extends Service implements LocationTracker.
                 location.getAltitude());
         trailRepository.insertPoint(point, () -> {
             recordingStateStore.recordLocation();
-            broadcast(ACTION_LOCATION_RECORDED);
+            broadcastLocation(location);
         });
     }
 
@@ -189,6 +193,16 @@ public class LocationTrackingService extends Service implements LocationTracker.
         tracker.stop();
         tracking = false;
         super.onDestroy();
+    }
+
+    private void broadcastLocation(Location location) {
+        Intent intent = new Intent(ACTION_LOCATION_RECORDED);
+        intent.setPackage(getPackageName());
+        intent.putExtra(EXTRA_HAS_ACCURACY, location.hasAccuracy());
+        if (location.hasAccuracy()) {
+            intent.putExtra(EXTRA_ACCURACY_METERS, location.getAccuracy());
+        }
+        sendBroadcast(intent);
     }
 
     @Nullable

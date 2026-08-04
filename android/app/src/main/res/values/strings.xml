@@ -59,4 +59,26 @@
     <string name="automatic_map_selection_description">When the selected map does not cover the latest recorded location, use the smallest installed map that does.</string>
     <string name="map_covers_current_location">Covers latest location</string>
     <string name="map_automatically_selected">Selected %1$s for the current location.</string>
+    <string name="recording_status_ready">Ready to record</string>
+    <string name="recording_summary_ready">Start a new trail when you are ready.</string>
+    <string name="recording_status_paused">Recording paused</string>
+    <string name="recording_summary_paused">Your trail is saved on this device.</string>
+    <string name="recording_status_active">Recording trail</string>
+    <string name="recording_summary_active">Location recording continues in the background.</string>
+    <string name="recording_status_uploading">Upload pending</string>
+    <string name="recording_summary_uploading">The trail will upload when network access is available.</string>
+    <string name="points_label">Points</string>
+    <string name="elapsed_label">Elapsed</string>
+    <string name="start_recording">Start recording</string>
+    <string name="continue_recording">Continue recording</string>
+    <string name="take_photo_short">Photo</string>
+    <string name="upload_short">Upload</string>
+    <string name="delete_short">Delete</string>
+    <string name="manage_offline_maps">Maps</string>
+    <string name="gps_inactive">GPS inactive</string>
+    <string name="gps_searching">Finding GPS…</string>
+    <string name="gps_fix">GPS fix</string>
+    <string name="gps_accuracy_strong">GPS strong · ±%1$.0f m</string>
+    <string name="gps_accuracy_good">GPS good · ±%1$.0f m</string>
+    <string name="gps_accuracy_weak">GPS weak · ±%1$.0f m</string>
 </resources>
