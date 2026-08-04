@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
@@ -34,6 +35,7 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
     private LocationTracker tracker;
     private RecordingStateStore recordingStateStore;
+    private TrailRepository trailRepository;
     private boolean tracking;
 
     @Override
@@ -41,11 +43,8 @@ public class LocationTrackingService extends Service implements LocationTracker.
         super.onCreate();
         createNotificationChannel();
         recordingStateStore = new RecordingStateStore(this);
-        tracker = new LocationTracker(
-                getString(R.string.locations_filename),
-                getString(R.string.pictures_filename),
-                getApplicationContext(),
-                this);
+        trailRepository = new TrailRepository(this);
+        tracker = new LocationTracker(getApplicationContext(), this);
     }
 
     @Override
@@ -154,9 +153,26 @@ public class LocationTrackingService extends Service implements LocationTracker.
     }
 
     @Override
-    public void onLocationRecorded() {
-        recordingStateStore.recordLocation();
-        broadcast(ACTION_LOCATION_RECORDED);
+    public void onLocationRecorded(Location location) {
+        TrailPointEntity point = new TrailPointEntity(
+                Iso8061DateTime.get(),
+                location.getLongitude(),
+                location.getLatitude(),
+                location.getAltitude());
+        trailRepository.insertPoint(point, () -> {
+            recordingStateStore.recordLocation();
+            broadcast(ACTION_LOCATION_RECORDED);
+        });
+    }
+
+    @Override
+    public void onPictureRecorded(String imagePath, Location location) {
+        trailRepository.insertPhoto(new TrailPhotoEntity(
+                imagePath,
+                Iso8061DateTime.get(),
+                location.getLongitude(),
+                location.getLatitude(),
+                location.getAltitude()));
     }
 
     @Override

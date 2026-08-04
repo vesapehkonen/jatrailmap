@@ -21,7 +21,6 @@ import androidx.work.WorkManager;
 
 import org.json.JSONObject;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
@@ -31,15 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 public class TransferActivity extends AppCompatActivity {
-    private String locationsFilename;
-    private String picturesFilename;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_transfer);
-        locationsFilename = getIntent().getStringExtra("locsFilename");
-        picturesFilename = getIntent().getStringExtra("picsFilename");
         fillForm();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -76,8 +70,7 @@ public class TransferActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.upload_https_required, Toast.LENGTH_LONG).show();
             return;
         }
-        File locations = new File(getExternalFilesDir(null), locationsFilename);
-        if (!locations.exists() || locations.length() == 0) {
+        if (new RecordingStateStore(this).getSnapshot().points == 0) {
             Toast.makeText(this, R.string.upload_no_locations, Toast.LENGTH_LONG).show();
             return;
         }
@@ -89,8 +82,6 @@ public class TransferActivity extends AppCompatActivity {
                 .putString(TrailUploadWorker.KEY_TRAIL_NAME, trailName)
                 .putString(TrailUploadWorker.KEY_LOCATION_NAME, locationName)
                 .putString(TrailUploadWorker.KEY_DESCRIPTION, description)
-                .putString(TrailUploadWorker.KEY_LOCATIONS_FILENAME, locationsFilename)
-                .putString(TrailUploadWorker.KEY_PICTURES_FILENAME, picturesFilename)
                 .build();
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -168,7 +159,8 @@ public class TransferActivity extends AppCompatActivity {
             json.put("trailname", trailName);
             json.put("locationname", locationName);
             json.put("description", description);
-            File file = new File(getExternalFilesDir(null), getString(R.string.form_state_filename));
+            java.io.File file = new java.io.File(
+                    getExternalFilesDir(null), getString(R.string.form_state_filename));
             try (OutputStreamWriter writer = new OutputStreamWriter(
                     new FileOutputStream(file, false), StandardCharsets.UTF_8)) {
                 writer.write(json.toString());
@@ -179,7 +171,8 @@ public class TransferActivity extends AppCompatActivity {
     }
 
     private void fillForm() {
-        File file = new File(getExternalFilesDir(null), getString(R.string.form_state_filename));
+        java.io.File file = new java.io.File(
+                getExternalFilesDir(null), getString(R.string.form_state_filename));
         if (!file.exists()) {
             return;
         }

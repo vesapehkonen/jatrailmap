@@ -82,6 +82,10 @@ public final class RecordingStateStore {
         preferences.edit().putInt(POINTS, points + 1).apply();
     }
 
+    synchronized void setPointCount(int points) {
+        preferences.edit().putInt(POINTS, points).apply();
+    }
+
     public synchronized void markUploading() {
         Snapshot snapshot = getSnapshot();
         preferences.edit()

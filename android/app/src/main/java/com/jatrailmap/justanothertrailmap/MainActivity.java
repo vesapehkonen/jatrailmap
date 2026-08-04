@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     private int delete_this = 0;
     private Timer timer;
     private RecordingStateStore recordingStateStore;
+    private TrailRepository trailRepository;
     private final String LOG = "mylog";
     private Context context;
     private final int TAKE_PICTURE = 1, TRANSFER_DATA = 2;
@@ -193,6 +194,7 @@ public class MainActivity extends AppCompatActivity {
         Context context = getApplicationContext();
         timer = new Timer((Chronometer) findViewById(R.id.chronometer));
         recordingStateStore = new RecordingStateStore(context);
+        trailRepository = new TrailRepository(context);
         registerTrackingReceiver();
         if (savedInstanceState != null) {
             currentImagePath = savedInstanceState.getString("currentImagePath", "");
@@ -233,8 +235,6 @@ public class MainActivity extends AppCompatActivity {
 
 	if (id == R.id.button_send ) {
                 Intent intent = new Intent(this, TransferActivity.class);
-                intent.putExtra("locsFilename", getString(R.string.locations_filename));
-                intent.putExtra("picsFilename", getString(R.string.pictures_filename));
                 startActivityForResult(intent, TRANSFER_DATA);
 	}
 
@@ -245,21 +245,10 @@ public class MainActivity extends AppCompatActivity {
                         .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
 
-                                // Delete location and picture files
-                                File file = new File(getExternalFilesDir(null),
-                                        getString(R.string.locations_filename));
-                                if (file.exists()) {
-                                    file.delete();
-                                    Log.i(LOG, getString(R.string.locations_filename) + " deleted");
-                                }
-                                file = new File(getExternalFilesDir(null),
-                                        getString(R.string.pictures_filename));
-                                if (file.exists()) {
-                                    file.delete();
-                                    Log.i(LOG, getString(R.string.pictures_filename) + " deleted");
-                                }
-                                recordingStateStore.reset();
-                                refreshUi();
+                                trailRepository.clearAllAsync(() -> {
+                                    recordingStateStore.reset();
+                                    refreshUi();
+                                });
                             }
                         })
                         .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {

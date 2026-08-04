@@ -9,15 +9,11 @@ import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,16 +30,16 @@ public final class TrailUploadWorker extends Worker {
     public static final String KEY_TRAIL_NAME = "trailName";
     public static final String KEY_LOCATION_NAME = "locationName";
     public static final String KEY_DESCRIPTION = "description";
-    public static final String KEY_LOCATIONS_FILENAME = "locationsFilename";
-    public static final String KEY_PICTURES_FILENAME = "picturesFilename";
     public static final String KEY_ERROR = "error";
 
     private static final int MAX_ATTEMPTS = 8;
 
     private final Gson gson = new Gson();
+    private final TrailRepository trailRepository;
 
     public TrailUploadWorker(@NonNull Context context, @NonNull WorkerParameters parameters) {
         super(context, parameters);
+        trailRepository = new TrailRepository(context);
     }
 
     @NonNull
@@ -78,7 +74,7 @@ public final class TrailUploadWorker extends Worker {
                 return failure(body.msg == null ? "Server rejected the upload" : body.msg);
             }
 
-            deleteUploadedMetadata();
+            trailRepository.clearAll();
             recordingStateStore.reset();
             return Result.success();
         } catch (IllegalArgumentException exception) {
@@ -93,44 +89,30 @@ public final class TrailUploadWorker extends Worker {
     }
 
     private TrailUploadModels.UploadRequest buildRequest() throws IOException {
-        List<Object> entries = new ArrayList<>();
-        entries.add(new TrailUploadModels.TrailInfo(
+        trailRepository.awaitPendingWrites();
+        List<TrailPointEntity> pointEntities = trailRepository.getPoints();
+        if (pointEntities.isEmpty()) {
+            throw new IllegalArgumentException("There is no location data to upload");
+        }
+        List<TrailPhotoEntity> photoEntities = trailRepository.getPhotos();
+        List<TrailUploadModels.PictureUpload> pictures = new ArrayList<>();
+        for (TrailPhotoEntity photo : photoEntities) {
+            File image = new File(photo.imagePath);
+            if (image.exists()) {
+                pictures.add(new TrailUploadModels.PictureUpload(
+                        photo, encodeImage(image)));
+            }
+        }
+        return TrailUploadRequestFactory.create(
                 Iso8061DateTime.get(),
                 requireInput(KEY_TRAIL_NAME),
                 value(KEY_LOCATION_NAME),
-                value(KEY_DESCRIPTION)));
-        entries.add(new TrailUploadModels.UserInfo(
-                requireInput(KEY_USERNAME), requireInput(KEY_PASSWORD)));
-
-        File locationsFile = appFile(requireInput(KEY_LOCATIONS_FILENAME));
-        if (!locationsFile.exists() || locationsFile.length() == 0) {
-            throw new IllegalArgumentException("There is no location data to upload");
-        }
-        String locationsJson = "[" + readText(locationsFile) + "]";
-        Type locationListType = new TypeToken<List<TrailUploadModels.LocationRecord>>() {}.getType();
-        List<TrailUploadModels.LocationRecord> locations =
-                gson.fromJson(locationsJson, locationListType);
-        entries.add(new TrailUploadModels.LocationCollection(locations));
-
-        String picturesFilename = value(KEY_PICTURES_FILENAME);
-        File picturesFile = appFile(picturesFilename);
-        if (picturesFile.exists()) {
-            List<TrailUploadModels.PictureUpload> pictures = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(new FileReader(picturesFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    TrailUploadModels.PictureMetadata metadata =
-                            gson.fromJson(line, TrailUploadModels.PictureMetadata.class);
-                    File image = new File(metadata.imagepath);
-                    if (image.exists()) {
-                        pictures.add(new TrailUploadModels.PictureUpload(
-                                metadata, encodeImage(image)));
-                    }
-                }
-            }
-            entries.add(new TrailUploadModels.PictureCollection(pictures));
-        }
-        return new TrailUploadModels.UploadRequest(entries);
+                value(KEY_DESCRIPTION),
+                requireInput(KEY_USERNAME),
+                requireInput(KEY_PASSWORD),
+                pointEntities,
+                pictures,
+                !photoEntities.isEmpty());
     }
 
     private String encodeImage(File image) throws IOException {
@@ -143,17 +125,6 @@ public final class TrailUploadWorker extends Worker {
             }
             return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
         }
-    }
-
-    private String readText(File file) throws IOException {
-        StringBuilder text = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                text.append(line);
-            }
-        }
-        return text.toString();
     }
 
     private void validateHttpsUrl(String url) {
@@ -179,18 +150,6 @@ public final class TrailUploadWorker extends Worker {
     private String value(String key) {
         String result = getInputData().getString(key);
         return result == null ? "" : result;
-    }
-
-    private File appFile(String filename) {
-        return new File(getApplicationContext().getExternalFilesDir(null), filename);
-    }
-
-    private void deleteUploadedMetadata() {
-        appFile(value(KEY_LOCATIONS_FILENAME)).delete();
-        File pictures = appFile(value(KEY_PICTURES_FILENAME));
-        if (pictures.exists()) {
-            pictures.delete();
-        }
     }
 
     private Result retryOrFail(String message) {

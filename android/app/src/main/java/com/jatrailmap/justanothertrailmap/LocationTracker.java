@@ -7,33 +7,24 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
 
 /**
  * Created by vesa on 6/25/15.
  */
 public class LocationTracker implements LocationListener {
     public interface Listener {
-        void onLocationRecorded();
+        void onLocationRecorded(Location location);
+        void onPictureRecorded(String imagePath, Location location);
         void onTrackingStopped();
     }
 
     private final String LOG = "mylog";
-    private String locsFilename;
-    private String picsFilename;
     private LocationManager locationManager;
     private Context context;
-    private BufferedWriter writer = null;
     private Listener listener;
 
     private enum State {idle, active}
@@ -41,31 +32,14 @@ public class LocationTracker implements LocationListener {
     ;
     private State state = State.idle;
 
-    public LocationTracker(String locs, String pics, Context ctx, Listener listener) {
-        locsFilename = locs;
-        picsFilename = pics;
+    public LocationTracker(Context ctx, Listener listener) {
         context = ctx;
         this.listener = listener;
-    }
-
-    // Checks if external storage is available for read and write
-    private boolean isExternalStorageWritable() {
-        String state = Environment.getExternalStorageState();
-        if (Environment.MEDIA_MOUNTED.equals(state)) {
-            return true;
-        }
-        return false;
     }
 
     // Start to get GPS coordinates
     public boolean start() {
         Log.i(LOG, "LocationTracker: start");
-        if (!isExternalStorageWritable()) {
-            Toast.makeText(context, "Unable to write external storage",
-                    Toast.LENGTH_LONG).show();
-            Log.w(LOG, "Unable to write external storage");
-            return false;
-        }
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             Log.w(LOG, "Location permission is not granted");
@@ -97,28 +71,11 @@ public class LocationTracker implements LocationListener {
             Log.i(LOG, "LocationTracker: stop");
             state = State.idle;
             locationManager.removeUpdates(this);
-            if (writer != null) {
-                try {
-                    Log.d(LOG, "close file " + locsFilename );
-                    writer.close();
-                } catch (IOException e) {
-                    Log.e(LOG, "exception", e);
-                    Toast.makeText(context, e.getMessage(), Toast.LENGTH_LONG).show();
-                }
-                writer = null;
-            }
         }
     }
 
     // Gets gps coordinates of the photo and writes photo information to the file
     public void savePicture(String imagePath) {
-        String line;
-        if (!isExternalStorageWritable()) {
-            Toast.makeText(context, "Unable to write external storage",
-                    Toast.LENGTH_LONG).show();
-            Log.w(LOG, "Unable to write external storage");
-            return;
-        }
 	Location loc = null;
 	try {
 	    loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -140,23 +97,7 @@ public class LocationTracker implements LocationListener {
             Log.w(LOG, "Location data is not available.");
             return;
         }
-        File file = new File(context.getExternalFilesDir(null), picsFilename);
-
-        try {
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter
-                    (new FileOutputStream(file, true), "UTF-8"));
-
-            line = "{\"imagepath\":\"" + imagePath +
-                    "\",\"timestamp\":\"" + Iso8061DateTime.get() +
-                    "\",\"loc\":{\"type\":\"Point\",\"coordinates\":[" + loc.getLongitude() +
-                    "," + loc.getLatitude() + "," + loc.getAltitude() + "]}}\n";
-            writer.write(line);
-            writer.close();
-            Log.d(LOG, "write to " + picsFilename + ": " + line);
-        } catch (IOException e) {
-            Log.e(LOG, "exception", e);
-            Toast.makeText(context, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+        listener.onPictureRecorded(imagePath, loc);
     }
 
     // Get gps coordinates and writes them to the file
@@ -169,32 +110,7 @@ public class LocationTracker implements LocationListener {
         Log.i(LOG, line);
         //Toast.makeText(context, line, Toast.LENGTH_SHORT).show();
 
-        listener.onLocationRecorded();
-        boolean addComma = true;
-        // write location point in one line and add comma, if it isn't first line
-        try {
-            if (writer == null) {
-                File file = new File(context.getExternalFilesDir(null), locsFilename);
-                Log.d(LOG, "open file " + locsFilename );
-                writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), "UTF-8"));
-                if (file.length() == 0) {
-                    addComma = false;
-                }
-            }
-            if (addComma) {
-                writer.write(",\n");
-                Log.d(LOG, "write to " + locsFilename + ": " + ",\n");
-            }
-            line = "{\"timestamp\":\"" + Iso8061DateTime.get() +
-                    "\",\"loc\":{\"type\":\"Point\",\"coordinates\":[" +
-                    loc.getLongitude() + "," + loc.getLatitude() + "," +
-                    loc.getAltitude() + "]}}";
-            writer.write(line);
-            Log.d(LOG, "write to " + locsFilename + ": " + line);
-        } catch (IOException e) {
-            Log.e(LOG, "exeption", e);
-            Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+        listener.onLocationRecorded(loc);
     }
 
     @Override

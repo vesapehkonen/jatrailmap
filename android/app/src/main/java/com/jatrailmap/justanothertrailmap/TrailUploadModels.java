@@ -3,6 +3,7 @@ package com.jatrailmap.justanothertrailmap;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
+import java.util.Arrays;
 
 public final class TrailUploadModels {
     private TrailUploadModels() {}
@@ -65,6 +66,11 @@ public final class TrailUploadModels {
     public static final class GeoPoint {
         String type;
         List<Double> coordinates;
+
+        GeoPoint(double longitude, double latitude, double altitude) {
+            type = "Point";
+            coordinates = Arrays.asList(longitude, latitude, altitude);
+        }
     }
 
     public static final class PictureMetadata {
@@ -94,6 +100,13 @@ public final class TrailUploadModels {
             timestamp = metadata.timestamp;
             filename = metadata.imagepath;
             loc = metadata.loc;
+            file = encodedImage;
+        }
+
+        PictureUpload(TrailPhotoEntity photo, String encodedImage) {
+            timestamp = photo.timestamp;
+            filename = photo.imagePath;
+            loc = new GeoPoint(photo.longitude, photo.latitude, photo.altitude);
             file = encodedImage;
         }
     }
