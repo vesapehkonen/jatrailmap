@@ -41,6 +41,7 @@ import org.mapsforge.core.graphics.Bitmap;
 import org.mapsforge.core.graphics.Color;
 import org.mapsforge.core.graphics.Paint;
 import org.mapsforge.core.graphics.Style;
+import org.mapsforge.core.model.BoundingBox;
 import org.mapsforge.core.model.LatLong;
 import org.mapsforge.core.model.MapPosition;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
@@ -62,11 +63,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.RandomAccessFile;
@@ -75,19 +74,15 @@ import java.util.Date;
 import java.util.EmptyStackException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.lang.Thread;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import androidx.core.content.FileProvider;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String MAP_PREFERENCES = "offline_map";
-    private static final String MAP_URI = "source_uri";
-    private static final String MAP_FILE_NAME = "selected.map";
-    private static final String MAP_LATITUDE = "center_latitude";
-    private static final String MAP_LONGITUDE = "center_longitude";
-    private static final String MAP_ZOOM = "zoom";
-    private static final ExecutorService MAP_IO_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final ExecutorService MAP_COVERAGE_EXECUTOR =
+            Executors.newSingleThreadExecutor();
 
     public class Timer {
         private final Chronometer chronometer;
@@ -122,6 +117,12 @@ public class MainActivity extends AppCompatActivity {
     private long lastRenderedPointId;
     private LatLong latestLocation;
     private boolean hasStoredMapPosition;
+    private String displayedMapFileName;
+    private boolean discardMapPositionOnPause;
+    private BoundingBox selectedMapBounds;
+    private boolean automaticMapSelectionInProgress;
+    private long lastCoverageCheckPointId;
+    private boolean mainActivityResumed;
     private final BroadcastReceiver trackingReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -129,8 +130,20 @@ public class MainActivity extends AppCompatActivity {
             refreshMapRoute();
         }
     };
-    private final ActivityResultLauncher<String[]> mapFileLauncher =
-            registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::importMap);
+    private final ActivityResultLauncher<Intent> offlineMapsLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    lastCoverageCheckPointId = 0;
+                    File selectedMap = OfflineMapStore.getSelectedMap(this);
+                    String selectedName = selectedMap == null ? null : selectedMap.getName();
+                    if (!Objects.equals(displayedMapFileName, selectedName)) {
+                        discardMapPositionOnPause = true;
+                        recreate();
+                    } else {
+                        refreshMapRoute();
+                    }
+                }
+            });
     private final ActivityResultLauncher<String[]> locationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), grants -> {
                 if (Boolean.TRUE.equals(grants.get(Manifest.permission.ACCESS_FINE_LOCATION))) {
@@ -241,8 +254,8 @@ public class MainActivity extends AppCompatActivity {
         mapView = findViewById(R.id.map_view);
         mapView.getMapScaleBar().setVisible(true);
         mapView.setBuiltInZoomControls(true);
-        findViewById(R.id.button_select_map).setOnClickListener(view ->
-                mapFileLauncher.launch(new String[]{"application/octet-stream", "*/*"}));
+        findViewById(R.id.button_select_map).setOnClickListener(view -> offlineMapsLauncher.launch(
+                new Intent(this, OfflineMapsActivity.class)));
         findViewById(R.id.button_recenter).setOnClickListener(view -> centerOnLatestLocation());
         restoreOfflineMap();
         registerTrackingReceiver();
@@ -358,13 +371,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Log.i(LOG, "onResume()");
         super.onResume();
+        mainActivityResumed = true;
+        lastCoverageCheckPointId = 0;
         refreshUi();
         refreshMapRoute();
     }
 
     protected void onPause() {
         Log.i(LOG, "onPause()");
-        saveMapPosition();
+        mainActivityResumed = false;
+        if (!discardMapPositionOnPause) {
+            saveMapPosition();
+        }
         super.onPause();
     }
 
@@ -383,111 +401,44 @@ public class MainActivity extends AppCompatActivity {
             mapView.destroyAll();
             mapView = null;
             mapDataStore = null;
+            selectedMapBounds = null;
         }
         AndroidGraphicFactory.clearResourceMemoryCache();
         super.onDestroy();
     }
 
-    private void importMap(Uri uri) {
-        if (uri == null) {
-            return;
-        }
-        Toast.makeText(this, R.string.map_importing, Toast.LENGTH_SHORT).show();
-        MAP_IO_EXECUTOR.execute(() -> {
-            File mapDirectory = new File(getFilesDir(), "maps");
-            File destination = new File(mapDirectory, MAP_FILE_NAME);
-            File temporary = new File(mapDirectory, MAP_FILE_NAME + ".importing");
-            File backup = new File(mapDirectory, MAP_FILE_NAME + ".backup");
-            boolean imported = false;
-            try {
-                if (!mapDirectory.exists() && !mapDirectory.mkdirs()) {
-                    throw new IOException("Unable to create map directory");
-                }
-                try (InputStream input = getContentResolver().openInputStream(uri);
-                     FileOutputStream output = new FileOutputStream(temporary)) {
-                    if (input == null) {
-                        throw new IOException("Unable to open selected map");
-                    }
-                    byte[] buffer = new byte[64 * 1024];
-                    int count;
-                    while ((count = input.read(buffer)) != -1) {
-                        output.write(buffer, 0, count);
-                    }
-                }
-                MapFile validation = new MapFile(temporary);
-                try {
-                    // Opening the copied file validates the Mapsforge header.
-                } finally {
-                    validation.close();
-                }
-                if (backup.exists() && !backup.delete()) {
-                    throw new IOException("Unable to remove previous map backup");
-                }
-                if (destination.exists() && !destination.renameTo(backup)) {
-                    throw new IOException("Unable to back up current map");
-                }
-                if (!temporary.renameTo(destination)) {
-                    if (backup.exists()) {
-                        backup.renameTo(destination);
-                    }
-                    throw new IOException("Unable to install selected map");
-                }
-                if (backup.exists() && !backup.delete()) {
-                    Log.w(LOG, "Unable to remove previous map backup");
-                }
-                try {
-                    getContentResolver().takePersistableUriPermission(
-                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                } catch (SecurityException exception) {
-                    Log.w(LOG, "Provider did not grant persistent map access", exception);
-                }
-                getSharedPreferences(MAP_PREFERENCES, MODE_PRIVATE).edit()
-                        .putString(MAP_URI, uri.toString())
-                        .apply();
-                imported = true;
-            } catch (Exception exception) {
-                Log.e(LOG, "Unable to import offline map", exception);
-                if (temporary.exists() && !temporary.delete()) {
-                    Log.w(LOG, "Unable to remove incomplete map import");
-                }
-            }
-            boolean result = imported;
-            runOnUiThread(() -> {
-                if (result) {
-                    recreate();
-                } else {
-                    Toast.makeText(this, R.string.map_import_failed, Toast.LENGTH_LONG).show();
-                }
-            });
-        });
-    }
-
     private void restoreOfflineMap() {
-        File mapFile = new File(new File(getFilesDir(), "maps"), MAP_FILE_NAME);
-        if (!mapFile.isFile()) {
+        File mapFile = OfflineMapStore.getSelectedMap(this);
+        if (mapFile == null) {
+            displayedMapFileName = null;
             mapView.setCenter(new LatLong(0, 0));
             mapView.setZoomLevel((byte) 2);
             return;
         }
         try {
+            displayedMapFileName = mapFile.getName();
             tileCache = AndroidUtil.createTileCache(this, "mapcache",
                     mapView.getModel().displayModel.getTileSize(), 1f,
                     mapView.getModel().frameBufferModel.getOverdrawFactor());
             mapDataStore = new MapFile(mapFile);
+            selectedMapBounds = mapDataStore.boundingBox();
             TileRendererLayer mapLayer = new TileRendererLayer(tileCache, mapDataStore,
                     mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
             mapLayer.setXmlRenderTheme(MapsforgeThemes.DEFAULT);
             mapView.getLayerManager().getLayers().add(mapLayer);
             findViewById(R.id.map_empty_message).setVisibility(View.GONE);
 
-            SharedPreferences preferences = getSharedPreferences(MAP_PREFERENCES, MODE_PRIVATE);
-            hasStoredMapPosition = preferences.contains(MAP_LATITUDE)
-                    && preferences.contains(MAP_LONGITUDE);
+            SharedPreferences preferences = getSharedPreferences(
+                    OfflineMapStore.PREFERENCES, MODE_PRIVATE);
+            hasStoredMapPosition = preferences.contains(OfflineMapStore.CENTER_LATITUDE)
+                    && preferences.contains(OfflineMapStore.CENTER_LONGITUDE);
             if (hasStoredMapPosition) {
                 LatLong center = new LatLong(
-                        Double.longBitsToDouble(preferences.getLong(MAP_LATITUDE, 0)),
-                        Double.longBitsToDouble(preferences.getLong(MAP_LONGITUDE, 0)));
-                byte zoom = (byte) preferences.getInt(MAP_ZOOM, 12);
+                        Double.longBitsToDouble(preferences.getLong(
+                                OfflineMapStore.CENTER_LATITUDE, 0)),
+                        Double.longBitsToDouble(preferences.getLong(
+                                OfflineMapStore.CENTER_LONGITUDE, 0)));
+                byte zoom = (byte) preferences.getInt(OfflineMapStore.ZOOM, 12);
                 mapView.getModel().mapViewPosition.setMapPosition(new MapPosition(center, zoom));
             } else {
                 mapView.setCenter(new LatLong(0, 0));
@@ -526,12 +477,57 @@ public class MainActivity extends AppCompatActivity {
             }
 
             latestLocation = new LatLong(latestPoint.latitude, latestPoint.longitude);
+            maybeSelectMapForLocation(latestPoint.id, latestLocation);
             showLocationMarker();
             findViewById(R.id.button_recenter).setEnabled(true);
             if (!hasStoredMapPosition) {
                 centerOnLatestLocation();
                 hasStoredMapPosition = true;
             }
+        });
+    }
+
+    private void maybeSelectMapForLocation(long pointId, LatLong location) {
+        if (location == null
+                || !mainActivityResumed
+                || !OfflineMapStore.isAutomaticSelectionEnabled(this)
+                || automaticMapSelectionInProgress
+                || pointId == lastCoverageCheckPointId) {
+            return;
+        }
+        lastCoverageCheckPointId = pointId;
+        if (selectedMapBounds != null && selectedMapBounds.contains(location)) {
+            return;
+        }
+
+        automaticMapSelectionInProgress = true;
+        Context applicationContext = getApplicationContext();
+        MAP_COVERAGE_EXECUTOR.execute(() -> {
+            String bestMap = OfflineMapStore.findBestMapForLocation(
+                    applicationContext, location.latitude, location.longitude);
+            runOnUiThread(() -> {
+                automaticMapSelectionInProgress = false;
+                if (mapView == null || !mainActivityResumed) {
+                    return;
+                }
+                if (!location.equals(latestLocation)) {
+                    maybeSelectMapForLocation(lastRenderedPointId, latestLocation);
+                    return;
+                }
+                if (bestMap == null || bestMap.equals(displayedMapFileName)
+                        || !OfflineMapStore.isAutomaticSelectionEnabled(this)) {
+                    return;
+                }
+                try {
+                    OfflineMapStore.selectMap(this, bestMap);
+                    discardMapPositionOnPause = true;
+                    Toast.makeText(this, getString(R.string.map_automatically_selected, bestMap),
+                            Toast.LENGTH_SHORT).show();
+                    recreate();
+                } catch (IOException exception) {
+                    Log.e(LOG, "Unable to automatically select offline map", exception);
+                }
+            });
         });
     }
 
@@ -595,10 +591,13 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         LatLong center = mapView.getModel().mapViewPosition.getCenter();
-        getSharedPreferences(MAP_PREFERENCES, MODE_PRIVATE).edit()
-                .putLong(MAP_LATITUDE, Double.doubleToRawLongBits(center.latitude))
-                .putLong(MAP_LONGITUDE, Double.doubleToRawLongBits(center.longitude))
-                .putInt(MAP_ZOOM, mapView.getModel().mapViewPosition.getZoomLevel())
+        getSharedPreferences(OfflineMapStore.PREFERENCES, MODE_PRIVATE).edit()
+                .putLong(OfflineMapStore.CENTER_LATITUDE,
+                        Double.doubleToRawLongBits(center.latitude))
+                .putLong(OfflineMapStore.CENTER_LONGITUDE,
+                        Double.doubleToRawLongBits(center.longitude))
+                .putInt(OfflineMapStore.ZOOM,
+                        mapView.getModel().mapViewPosition.getZoomLevel())
                 .apply();
     }
 

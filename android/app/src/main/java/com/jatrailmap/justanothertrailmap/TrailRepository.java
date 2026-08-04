@@ -23,6 +23,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
 public final class TrailRepository {
+    public interface PointCallback {
+        void onResult(TrailPointEntity point);
+    }
+
     public interface RouteCallback {
         void onResult(List<TrailPointEntity> points, TrailPointEntity latestPoint);
     }
@@ -89,6 +93,18 @@ public final class TrailRepository {
     public int getPointCount() throws IOException {
         ensureLegacyDataMigrated();
         return dao.getPointCount();
+    }
+
+    public void getLatestPointAsync(PointCallback callback) {
+        IO_EXECUTOR.execute(() -> {
+            try {
+                ensureLegacyDataMigrated();
+                TrailPointEntity point = dao.getLatestPoint();
+                runOnMain(() -> callback.onResult(point));
+            } catch (IOException exception) {
+                Log.e(LOG, "Unable to read latest location", exception);
+            }
+        });
     }
 
     public void getRouteUpdateAsync(long afterId, RouteCallback callback) {
