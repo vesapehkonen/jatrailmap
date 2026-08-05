@@ -12,6 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
@@ -53,6 +54,12 @@ public final class OfflineMapsActivity extends AppCompatActivity {
         automaticSelection.setChecked(OfflineMapStore.isAutomaticSelectionEnabled(this));
         automaticSelection.setOnCheckedChangeListener((button, checked) ->
                 OfflineMapStore.setAutomaticSelectionEnabled(this, checked));
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                finishWithResult();
+            }
+        });
         renderMaps();
         loadCoverage();
     }
@@ -64,11 +71,6 @@ public final class OfflineMapsActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void onBackPressed() {
-        finishWithResult();
     }
 
     private void finishWithResult() {
@@ -85,11 +87,14 @@ public final class OfflineMapsActivity extends AppCompatActivity {
             return;
         }
         importing = true;
+        DiagnosticLog.event(this, "MAP", "IMPORT_STARTED");
         importButton.setEnabled(false);
         Toast.makeText(this, R.string.map_importing, Toast.LENGTH_SHORT).show();
         MAP_IO_EXECUTOR.execute(() -> {
             try {
                 OfflineMapStore.importMap(this, uri);
+                DiagnosticLog.event(this, "MAP", "IMPORT_SUCCEEDED",
+                        "installedMaps=" + OfflineMapStore.listMaps(this).size());
                 runOnUiThread(() -> {
                     if (isDestroyed()) {
                         return;
@@ -100,6 +105,7 @@ public final class OfflineMapsActivity extends AppCompatActivity {
                     loadCoverage();
                 });
             } catch (IOException exception) {
+                DiagnosticLog.error(this, "MAP", "IMPORT_FAILED", exception);
                 runOnUiThread(() -> {
                     if (isDestroyed()) {
                         return;
@@ -159,8 +165,10 @@ public final class OfflineMapsActivity extends AppCompatActivity {
     private void selectMap(String fileName) {
         try {
             OfflineMapStore.selectMap(this, fileName);
+            DiagnosticLog.event(this, "MAP", "SELECTED");
             renderMaps();
         } catch (IOException exception) {
+            DiagnosticLog.error(this, "MAP", "SELECT_FAILED", exception);
             Toast.makeText(this, R.string.map_select_failed, Toast.LENGTH_LONG).show();
         }
     }
@@ -177,8 +185,11 @@ public final class OfflineMapsActivity extends AppCompatActivity {
     private void deleteMap(String fileName) {
         try {
             OfflineMapStore.deleteMap(this, fileName);
+            DiagnosticLog.event(this, "MAP", "DELETED",
+                    "installedMaps=" + OfflineMapStore.listMaps(this).size());
             renderMaps();
         } catch (IOException exception) {
+            DiagnosticLog.error(this, "MAP", "DELETE_FAILED", exception);
             Toast.makeText(this, R.string.map_delete_failed, Toast.LENGTH_LONG).show();
         }
     }

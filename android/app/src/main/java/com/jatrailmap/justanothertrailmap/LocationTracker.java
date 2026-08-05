@@ -40,9 +40,13 @@ public class LocationTracker implements LocationListener {
     // Start to get GPS coordinates
     public boolean start() {
         Log.i(LOG, "LocationTracker: start");
+        DiagnosticLog.event(context, "LOCATION", "START_REQUESTED",
+                "minTimeMs=20000 minDistanceM=20");
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             Log.w(LOG, "Location permission is not granted");
+            DiagnosticLog.event(context, "LOCATION", "START_REJECTED",
+                    "reason=permission_missing");
             return false;
         }
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
@@ -52,16 +56,20 @@ public class LocationTracker implements LocationListener {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 20000, 20, this);
         } catch (SecurityException ex) {
             Log.e(LOG, "Fail to request location update: " + ex.getMessage());
+            DiagnosticLog.error(context, "LOCATION", "UPDATE_REQUEST_FAILED", ex);
             Toast.makeText(context, "Fail to request location update: " + ex.getMessage(),
                            Toast.LENGTH_LONG).show();
             return false;
         } catch (IllegalArgumentException ex) {
             Log.e(LOG, "Location provider does not exist: " + ex.getMessage());
+            DiagnosticLog.error(context, "LOCATION", "GPS_PROVIDER_UNAVAILABLE", ex);
             Toast.makeText(context, "Location provider does not exist: " + ex.getMessage(),
                            Toast.LENGTH_LONG).show();
             return false;
         }
         state = State.active;
+        DiagnosticLog.event(context, "LOCATION", "UPDATES_REGISTERED",
+                "provider=gps");
         return true;
     }
 
@@ -69,6 +77,7 @@ public class LocationTracker implements LocationListener {
     public void stop() {
         if (state == State.active) {
             Log.i(LOG, "LocationTracker: stop");
+            DiagnosticLog.event(context, "LOCATION", "UPDATES_REMOVED");
             state = State.idle;
             locationManager.removeUpdates(this);
         }
@@ -84,10 +93,12 @@ public class LocationTracker implements LocationListener {
             }
         } catch (SecurityException ex) {
             Log.e(LOG, "Fail to request location update: " + ex.getMessage());
+            DiagnosticLog.error(context, "PHOTO", "LAST_LOCATION_DENIED", ex);
             Toast.makeText(context, new String("Fail to request location update: " + ex.getMessage()),
                            Toast.LENGTH_LONG).show();
         } catch (IllegalArgumentException ex) {
             Log.e(LOG, "Location provider does not exist: " + ex.getMessage());
+            DiagnosticLog.error(context, "PHOTO", "LAST_LOCATION_UNAVAILABLE", ex);
             Toast.makeText(context, new String("Location provider does not exist: " + ex.getMessage()),
                            Toast.LENGTH_LONG).show();
         }
@@ -95,21 +106,19 @@ public class LocationTracker implements LocationListener {
             Toast.makeText(context, "Location data is not available.",
                     Toast.LENGTH_LONG).show();
             Log.w(LOG, "Location data is not available.");
+            DiagnosticLog.event(context, "PHOTO", "NOT_RECORDED",
+                    "reason=location_unavailable");
             return;
         }
+        DiagnosticLog.event(context, "PHOTO", "LOCATION_AVAILABLE",
+                locationDetails(loc));
         listener.onPictureRecorded(imagePath, loc);
     }
 
     // Get gps coordinates and writes them to the file
     @Override
     public void onLocationChanged(Location loc) {
-        String line;
-        line = "Latitude: " + loc.getLatitude()
-                + " Longitude: " + loc.getLongitude()
-                + " Altitude: " + loc.getAltitude();
-        Log.i(LOG, line);
-        //Toast.makeText(context, line, Toast.LENGTH_SHORT).show();
-
+        DiagnosticLog.event(context, "LOCATION", "FIX_RECEIVED", locationDetails(loc));
         listener.onLocationRecorded(loc);
     }
 
@@ -121,6 +130,8 @@ public class LocationTracker implements LocationListener {
     @Override
     public void onProviderEnabled(String provider) {
         Log.i(LOG, "onProviderEnabled");
+        DiagnosticLog.event(context, "LOCATION", "PROVIDER_ENABLED",
+                "provider=" + provider);
         Toast.makeText(context, "Gps is turned on!",
                 Toast.LENGTH_SHORT).show();
     }
@@ -131,8 +142,18 @@ public class LocationTracker implements LocationListener {
         // context.startActivity(intent);
         stop();
         Log.w(LOG, "onProviderDisabled");
+        DiagnosticLog.event(context, "LOCATION", "PROVIDER_DISABLED",
+                "provider=" + provider);
         Toast.makeText(context, "Gps is turned off!",
                 Toast.LENGTH_LONG).show();
         listener.onTrackingStopped();
+    }
+
+    private String locationDetails(Location location) {
+        String provider = location.getProvider() == null ? "unknown" : location.getProvider();
+        return "provider=" + provider
+                + " hasAccuracy=" + location.hasAccuracy()
+                + (location.hasAccuracy() ? " accuracyM=" + Math.round(location.getAccuracy()) : "")
+                + " hasAltitude=" + location.hasAltitude();
     }
 }

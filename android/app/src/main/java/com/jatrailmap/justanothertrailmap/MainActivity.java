@@ -1,6 +1,7 @@
 package com.jatrailmap.justanothertrailmap;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
 import android.content.BroadcastReceiver;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -76,6 +77,7 @@ import java.util.Date;
 import java.util.EmptyStackException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.lang.Thread;
 import java.util.concurrent.ExecutorService;
@@ -83,6 +85,8 @@ import java.util.concurrent.Executors;
 import androidx.core.content.FileProvider;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String FILE_PROVIDER_AUTHORITY =
+            "com.jatrailmap.android.fileprovider";
     private static final ExecutorService MAP_COVERAGE_EXECUTOR =
             Executors.newSingleThreadExecutor();
 
@@ -152,7 +156,11 @@ public class MainActivity extends AppCompatActivity {
             });
     private final ActivityResultLauncher<String[]> locationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), grants -> {
-                if (Boolean.TRUE.equals(grants.get(Manifest.permission.ACCESS_FINE_LOCATION))) {
+                boolean granted = Boolean.TRUE.equals(
+                        grants.get(Manifest.permission.ACCESS_FINE_LOCATION));
+                DiagnosticLog.event(this, "PERMISSION", "LOCATION_RESULT",
+                        "fine=" + granted);
+                if (granted) {
                     startTracking();
                 } else {
                     Toast.makeText(this, R.string.location_permission_denied,
@@ -161,6 +169,8 @@ public class MainActivity extends AppCompatActivity {
             });
     private final ActivityResultLauncher<String> cameraPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                DiagnosticLog.event(this, "PERMISSION", "CAMERA_RESULT",
+                        "granted=" + granted);
                 if (granted) {
                     dispatchTakePictureIntent();
                 } else {
@@ -169,14 +179,19 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
-                    startTrackingService());
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                DiagnosticLog.event(this, "PERMISSION", "NOTIFICATION_RESULT",
+                        "granted=" + granted);
+                startTrackingService();
+            });
 
     private void requestLocationPermissionAndStartTracking() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
+            DiagnosticLog.event(this, "PERMISSION", "LOCATION_ALREADY_GRANTED");
             startTracking();
         } else {
+            DiagnosticLog.event(this, "PERMISSION", "LOCATION_REQUESTED");
             locationPermissionLauncher.launch(new String[]{
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION
@@ -188,6 +203,7 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
+            DiagnosticLog.event(this, "PERMISSION", "NOTIFICATION_REQUESTED");
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
         } else {
             startTrackingService();
@@ -195,12 +211,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startTrackingService() {
+        DiagnosticLog.event(this, "UI", "START_TRACKING_REQUESTED");
         Intent intent = new Intent(this, LocationTrackingService.class);
         intent.setAction(LocationTrackingService.ACTION_START);
         ContextCompat.startForegroundService(this, intent);
     }
 
     private void stopTrackingService() {
+        DiagnosticLog.event(this, "UI", "STOP_TRACKING_REQUESTED");
         Intent intent = new Intent(this, LocationTrackingService.class);
         intent.setAction(LocationTrackingService.ACTION_STOP);
         startService(intent);
@@ -213,8 +231,10 @@ public class MainActivity extends AppCompatActivity {
         Button pictureButton = findViewById(R.id.button_picture);
         Button sendButton = findViewById(R.id.button_send);
         Button deleteButton = findViewById(R.id.button_delete);
+        Button finishButton = findViewById(R.id.button_finish);
         TextView status = findViewById(R.id.text_recording_status);
         TextView summary = findViewById(R.id.text_recording_summary);
+        sendButton.setVisibility(View.GONE);
         switch (snapshot.status) {
         case INITIAL:
             status.setText(R.string.recording_status_ready);
@@ -226,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
             pictureButton.setEnabled(false);
             sendButton.setEnabled(false);
             deleteButton.setEnabled(false);
+            finishButton.setVisibility(View.GONE);
             break;
         case STOPPED:
             status.setText(R.string.recording_status_paused);
@@ -235,8 +256,10 @@ public class MainActivity extends AppCompatActivity {
             startButton.setEnabled(true);
             stopButton.setVisibility(View.GONE);
             pictureButton.setEnabled(false);
-            sendButton.setEnabled(true);
+            sendButton.setEnabled(false);
             deleteButton.setEnabled(true);
+            finishButton.setVisibility(View.VISIBLE);
+            finishButton.setEnabled(snapshot.activeTrailId > 0);
             break;
         case TRACKING:
             status.setText(R.string.recording_status_active);
@@ -247,17 +270,7 @@ public class MainActivity extends AppCompatActivity {
             pictureButton.setEnabled(true);
             sendButton.setEnabled(false);
             deleteButton.setEnabled(false);
-            break;
-        case UPLOADING:
-            status.setText(R.string.recording_status_uploading);
-            summary.setText(R.string.recording_summary_uploading);
-            startButton.setText(R.string.upload_in_progress);
-            startButton.setVisibility(View.VISIBLE);
-            startButton.setEnabled(false);
-            stopButton.setVisibility(View.GONE);
-            pictureButton.setEnabled(false);
-            sendButton.setEnabled(false);
-            deleteButton.setEnabled(false);
+            finishButton.setVisibility(View.GONE);
             break;
         }
         ((TextView) findViewById(R.id.text_locs)).setText(String.valueOf(snapshot.points));
@@ -276,6 +289,12 @@ public class MainActivity extends AppCompatActivity {
         timer = new Timer((Chronometer) findViewById(R.id.chronometer));
         recordingStateStore = new RecordingStateStore(context);
         trailRepository = new TrailRepository(context);
+        RecordingStateStore.Snapshot restoredState = recordingStateStore.getSnapshot();
+        DiagnosticLog.event(this, "UI", "MAIN_CREATED",
+                "status=" + restoredState.status.name()
+                        + " session=" + restoredState.sessionId
+                        + " points=" + restoredState.points
+                        + " savedInstance=" + (savedInstanceState != null));
         mapView = findViewById(R.id.map_view);
         mapView.getMapScaleBar().setVisible(true);
         mapView.setBuiltInZoomControls(true);
@@ -294,6 +313,8 @@ public class MainActivity extends AppCompatActivity {
         refreshUi();
         refreshMapRoute();
         if (recordingStateStore.getSnapshot().isTracking()) {
+            DiagnosticLog.event(this, "UI", "RESTORE_TRACKING_REQUESTED",
+                    "session=" + recordingStateStore.getSnapshot().sessionId);
             requestLocationPermissionAndStartTracking();
         }
     }
@@ -330,8 +351,15 @@ public class MainActivity extends AppCompatActivity {
 		requestCameraPermissionAndTakePicture();
 	}
 
+        if (id == R.id.button_finish) {
+                finishActiveTrail();
+        }
+
 	if (id == R.id.button_send ) {
+                RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
                 Intent intent = new Intent(this, TransferActivity.class);
+                intent.putExtra(TransferActivity.EXTRA_TRAIL_ID, snapshot.activeTrailId);
+                intent.putExtra(TransferActivity.EXTRA_POINT_COUNT, snapshot.points);
                 startActivityForResult(intent, TRANSFER_DATA);
 	}
 
@@ -342,7 +370,7 @@ public class MainActivity extends AppCompatActivity {
                         .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
 
-                                trailRepository.clearAllAsync(() -> {
+                                trailRepository.deleteActiveTrailAsync(() -> {
                                     recordingStateStore.reset();
                                     refreshUi();
                                     clearMapRoute();
@@ -360,10 +388,60 @@ public class MainActivity extends AppCompatActivity {
 	}
     }
 
+    private void finishActiveTrail() {
+        RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+        if (snapshot.status != RecordingStateStore.Status.STOPPED
+                || snapshot.activeTrailId <= 0) {
+            return;
+        }
+        trailRepository.getTrailDetailsAsync(snapshot.activeTrailId, (trail, points) -> {
+            if (trail == null && points.isEmpty()) {
+                recordingStateStore.reset();
+                refreshUi();
+                clearMapRoute();
+                Toast.makeText(this, R.string.empty_trail_finished, Toast.LENGTH_LONG).show();
+                return;
+            }
+            EditText nameInput = new EditText(this);
+            nameInput.setHint(R.string.trail_name_hint);
+            nameInput.setText(TrailNames.normalized(trail.name, trail.createdAt));
+            nameInput.setSelectAllOnFocus(true);
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.finish_trail_title)
+                    .setMessage(R.string.finish_trail_message)
+                    .setView(nameInput)
+                    .setPositiveButton(R.string.finish_trail, (dialog, which) -> {
+                        RecordingStateStore.Snapshot current =
+                                recordingStateStore.getSnapshot();
+                        if (current.status != RecordingStateStore.Status.STOPPED
+                                || current.activeTrailId != snapshot.activeTrailId) {
+                            return;
+                        }
+                            trailRepository.finishTrailAsync(
+                                    snapshot.activeTrailId,
+                                    nameInput.getText().toString(),
+                                    current.elapsedTimeMs,
+                                    success -> {
+                                        if (!success) {
+                                            Toast.makeText(this, R.string.finish_trail_failed,
+                                                    Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                        recordingStateStore.reset();
+                                        refreshUi();
+                                        clearMapRoute();
+                                        Toast.makeText(this, R.string.trail_finished,
+                                                Toast.LENGTH_LONG).show();
+                                    });
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        });
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        //getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
@@ -376,7 +454,11 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_trail_history) {
+            startActivity(new Intent(this, TrailHistoryActivity.class));
+            return true;
+        } else if (id == R.id.action_export_diagnostics) {
+            shareDiagnostics();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -405,6 +487,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Log.i(LOG, "onResume()");
         super.onResume();
+        DiagnosticLog.event(this, "UI", "MAIN_RESUMED",
+                "status=" + recordingStateStore.getSnapshot().status.name());
         mainActivityResumed = true;
         lastCoverageCheckPointId = 0;
         refreshUi();
@@ -413,6 +497,8 @@ public class MainActivity extends AppCompatActivity {
 
     protected void onPause() {
         Log.i(LOG, "onPause()");
+        DiagnosticLog.event(this, "UI", "MAIN_PAUSED",
+                "status=" + recordingStateStore.getSnapshot().status.name());
         mainActivityResumed = false;
         if (!discardMapPositionOnPause) {
             saveMapPosition();
@@ -444,6 +530,7 @@ public class MainActivity extends AppCompatActivity {
     private void restoreOfflineMap() {
         File mapFile = OfflineMapStore.getSelectedMap(this);
         if (mapFile == null) {
+            DiagnosticLog.event(this, "MAP", "NO_MAP_SELECTED");
             displayedMapFileName = null;
             mapView.setCenter(new LatLong(0, 0));
             mapView.setZoomLevel((byte) 2);
@@ -461,6 +548,8 @@ public class MainActivity extends AppCompatActivity {
             mapLayer.setXmlRenderTheme(MapsforgeThemes.DEFAULT);
             mapView.getLayerManager().getLayers().add(mapLayer);
             findViewById(R.id.map_empty_message).setVisibility(View.GONE);
+            DiagnosticLog.event(this, "MAP", "OPENED",
+                    "sizeBytes=" + mapFile.length());
 
             SharedPreferences preferences = getSharedPreferences(
                     OfflineMapStore.PREFERENCES, MODE_PRIVATE);
@@ -480,6 +569,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception exception) {
             Log.e(LOG, "Unable to open stored offline map", exception);
+            DiagnosticLog.error(this, "MAP", "OPEN_FAILED", exception);
             findViewById(R.id.map_empty_message).setVisibility(View.VISIBLE);
         }
     }
@@ -554,6 +644,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 try {
                     OfflineMapStore.selectMap(this, bestMap);
+                    DiagnosticLog.event(this, "MAP", "AUTOMATICALLY_SELECTED");
                     discardMapPositionOnPause = true;
                     Toast.makeText(this, getString(R.string.map_automatically_selected, bestMap),
                             Toast.LENGTH_SHORT).show();
@@ -724,7 +815,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Create a image file to the public picture directory
     private File createImageFile()  {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         String imageFileName = "img_" + timeStamp + ".jpg";
         //File storageDir = Environment.getExternalStoragePublicDirectory(
 	//       Environment.DIRECTORY_PICTURES);
@@ -739,15 +830,16 @@ public class MainActivity extends AppCompatActivity {
 	    Log.e(LOG, "exception", e);
 	    return null;
 	}
-	Log.i(LOG, "createImagefile: " + currentImagePath);
         return image;
     }
 
     private void requestCameraPermissionAndTakePicture() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
+            DiagnosticLog.event(this, "PERMISSION", "CAMERA_ALREADY_GRANTED");
             dispatchTakePictureIntent();
         } else {
+            DiagnosticLog.event(this, "PERMISSION", "CAMERA_REQUESTED");
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
         }
     }
@@ -770,7 +862,7 @@ public class MainActivity extends AppCompatActivity {
 	}
         //takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
 	Uri photoURI = FileProvider.getUriForFile(this,
-                                                  "com.jatrailmap.android.fileprovider",
+                                                  FILE_PROVIDER_AUTHORITY,
                                                   photoFile);
 	takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
 	try {
@@ -804,8 +896,8 @@ public class MainActivity extends AppCompatActivity {
                 switch (resultCode) {
                     case RESULT_OK:
                         Log.i(LOG, "onActivityResult: RESULT_OK");
-                        recordingStateStore.reset();
                         refreshUi();
+                        clearMapRoute();
                         showDialog("Information", "Trail data was sent successfully");
                         break;
                     case RESULT_CANCELED:
@@ -813,6 +905,25 @@ public class MainActivity extends AppCompatActivity {
                         break;
                 }
                 break;
+        }
+    }
+
+    private void shareDiagnostics() {
+        try {
+            DiagnosticLog.event(this, "UI", "DIAGNOSTICS_EXPORT_REQUESTED");
+            File diagnostics = DiagnosticLog.createExportFile(this);
+            Uri uri = FileProvider.getUriForFile(
+                    this, FILE_PROVIDER_AUTHORITY, diagnostics);
+            Intent share = new Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_STREAM, uri)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            share.setClipData(ClipData.newRawUri("diagnostics", uri));
+            startActivity(Intent.createChooser(
+                    share, getString(R.string.diagnostics_share_title)));
+        } catch (IOException | RuntimeException exception) {
+            DiagnosticLog.error(this, "UI", "DIAGNOSTICS_EXPORT_FAILED", exception);
+            Toast.makeText(this, R.string.diagnostics_export_failed, Toast.LENGTH_LONG).show();
         }
     }
 }

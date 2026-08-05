@@ -49,10 +49,19 @@ public class LocationTrackingService extends Service implements LocationTracker.
         recordingStateStore = new RecordingStateStore(this);
         trailRepository = new TrailRepository(this);
         tracker = new LocationTracker(getApplicationContext(), this);
+        RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+        DiagnosticLog.event(this, "SERVICE", "CREATED",
+                "status=" + snapshot.status.name()
+                        + " session=" + snapshot.sessionId
+                        + " points=" + snapshot.points);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        DiagnosticLog.event(this, "SERVICE", "COMMAND_RECEIVED",
+                "action=" + safeAction(intent)
+                        + " startId=" + startId
+                        + " tracking=" + tracking);
         if (intent == null || ACTION_START.equals(intent.getAction())) {
             startTracking();
         } else if (ACTION_STOP.equals(intent.getAction())) {
@@ -70,14 +79,10 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
     private void startTracking() {
         if (tracking) {
+            DiagnosticLog.event(this, "SERVICE", "START_IGNORED",
+                    "reason=already_tracking");
             return;
         }
-        if (recordingStateStore.getSnapshot().status == RecordingStateStore.Status.UPLOADING) {
-            stopSelf();
-            broadcast(ACTION_TRACKING_STOPPED);
-            return;
-        }
-
         int foregroundServiceType = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 ? ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
                 : 0;
@@ -92,22 +97,31 @@ public class LocationTrackingService extends Service implements LocationTracker.
             recordingStateStore.startTracking();
             broadcast(ACTION_GPS_SEARCHING);
             Log.i(LOG, "Location tracking service started");
+            RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+            DiagnosticLog.event(this, "SERVICE", "FOREGROUND_TRACKING_STARTED",
+                    "session=" + snapshot.sessionId + " points=" + snapshot.points);
         } else {
             recordingStateStore.stopTracking();
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
             stopSelf();
             broadcast(ACTION_TRACKING_STOPPED);
+            DiagnosticLog.event(this, "SERVICE", "TRACKING_START_FAILED");
         }
     }
 
     private void stopTracking() {
+        RecordingStateStore.Snapshot beforeStop = recordingStateStore.getSnapshot();
         tracker.stop();
         tracking = false;
+        trailRepository.updateDurationAsync(
+                beforeStop.activeTrailId, beforeStop.elapsedTimeMs);
         recordingStateStore.stopTracking();
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
         stopSelf();
         broadcast(ACTION_TRACKING_STOPPED);
         Log.i(LOG, "Location tracking service stopped");
+        DiagnosticLog.event(this, "SERVICE", "TRACKING_STOPPED",
+                "session=" + beforeStop.sessionId + " points=" + beforeStop.points);
     }
 
     private Notification buildNotification() {
@@ -158,20 +172,31 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
     @Override
     public void onLocationRecorded(Location location) {
+        RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+        DiagnosticLog.event(this, "SERVICE", "POINT_WRITE_REQUESTED",
+                "session=" + snapshot.sessionId + " trail=" + snapshot.activeTrailId);
         TrailPointEntity point = new TrailPointEntity(
+                snapshot.activeTrailId,
                 Iso8061DateTime.get(),
                 location.getLongitude(),
                 location.getLatitude(),
                 location.getAltitude());
         trailRepository.insertPoint(point, () -> {
             recordingStateStore.recordLocation();
+            RecordingStateStore.Snapshot stored = recordingStateStore.getSnapshot();
+            DiagnosticLog.event(this, "DATABASE", "POINT_STORED",
+                    "session=" + stored.sessionId + " points=" + stored.points);
             broadcastLocation(location);
         });
     }
 
     @Override
     public void onPictureRecorded(String imagePath, Location location) {
+        RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
+        DiagnosticLog.event(this, "SERVICE", "PHOTO_WRITE_REQUESTED",
+                "session=" + snapshot.sessionId + " trail=" + snapshot.activeTrailId);
         trailRepository.insertPhoto(new TrailPhotoEntity(
+                snapshot.activeTrailId,
                 imagePath,
                 Iso8061DateTime.get(),
                 location.getLongitude(),
@@ -181,7 +206,10 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
     @Override
     public void onTrackingStopped() {
+        DiagnosticLog.event(this, "SERVICE", "TRACKER_STOP_CALLBACK");
+        RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
         tracking = false;
+        trailRepository.updateDurationAsync(snapshot.activeTrailId, snapshot.elapsedTimeMs);
         recordingStateStore.stopTracking();
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
         stopSelf();
@@ -190,19 +218,54 @@ public class LocationTrackingService extends Service implements LocationTracker.
 
     @Override
     public void onDestroy() {
+        RecordingStateStore.Snapshot snapshot = recordingStateStore == null
+                ? null : recordingStateStore.getSnapshot();
+        DiagnosticLog.event(this, "SERVICE", "DESTROYED",
+                snapshot == null ? "state=unavailable"
+                        : "status=" + snapshot.status.name()
+                        + " session=" + snapshot.sessionId
+                        + " points=" + snapshot.points);
         tracker.stop();
         tracking = false;
         super.onDestroy();
     }
 
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        DiagnosticLog.event(this, "SERVICE", "TASK_REMOVED",
+                "tracking=" + tracking);
+        super.onTaskRemoved(rootIntent);
+    }
+
     private void broadcastLocation(Location location) {
+        sendBroadcast(createLocationRecordedIntent(getPackageName(), location));
+    }
+
+    static Intent createLocationRecordedIntent(String packageName, Location location) {
         Intent intent = new Intent(ACTION_LOCATION_RECORDED);
-        intent.setPackage(getPackageName());
+        intent.setPackage(packageName);
         intent.putExtra(EXTRA_HAS_ACCURACY, location.hasAccuracy());
         if (location.hasAccuracy()) {
             intent.putExtra(EXTRA_ACCURACY_METERS, location.getAccuracy());
         }
-        sendBroadcast(intent);
+        return intent;
+    }
+
+    private static String safeAction(Intent intent) {
+        if (intent == null) {
+            return "system_restart";
+        }
+        String action = intent.getAction();
+        if (ACTION_START.equals(action)) {
+            return "start";
+        }
+        if (ACTION_STOP.equals(action)) {
+            return "stop";
+        }
+        if (ACTION_SAVE_PICTURE.equals(action)) {
+            return "save_picture";
+        }
+        return action == null ? "none" : "other";
     }
 
     @Nullable

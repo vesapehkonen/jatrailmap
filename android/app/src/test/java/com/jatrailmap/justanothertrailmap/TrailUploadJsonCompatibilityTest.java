@@ -13,8 +13,9 @@ public class TrailUploadJsonCompatibilityTest {
     @Test
     public void roomRecordsSerializeToLegacyServerStructure() {
         TrailPointEntity point = new TrailPointEntity(
-                "2026-08-03T12:01:00-07:00", -122.1, 37.4, 150.0);
+                42, "2026-08-03T12:01:00-07:00", -122.1, 37.4, 150.0);
         TrailPhotoEntity photo = new TrailPhotoEntity(
+                42,
                 "/photos/img.jpg",
                 "2026-08-03T12:02:00-07:00",
                 -122.2,

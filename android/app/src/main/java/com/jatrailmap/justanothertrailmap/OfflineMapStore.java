@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -73,7 +72,8 @@ public final class OfflineMapStore {
         if (files == null) {
             return new ArrayList<>();
         }
-        Arrays.sort(files, Comparator.comparing(File::getName, String.CASE_INSENSITIVE_ORDER));
+        Arrays.sort(files, (left, right) ->
+                String.CASE_INSENSITIVE_ORDER.compare(left.getName(), right.getName()));
         List<MapInfo> maps = new ArrayList<>(files.length);
         for (File file : files) {
             maps.add(new MapInfo(file.getName(), file.length(),
@@ -122,23 +122,41 @@ public final class OfflineMapStore {
     public static String findBestMapForLocation(Context context, double latitude,
                                                 double longitude) {
         File selected = getSelectedMap(context);
-        if (selected != null && covers(selected, latitude, longitude)) {
-            return selected.getName();
-        }
-
+        Map<String, BoundingBox> mapBounds = new HashMap<>();
         File[] maps = mapFiles(context);
-        String bestName = null;
-        double bestArea = Double.MAX_VALUE;
         for (File map : maps) {
             BoundingBox bounds = bounds(map);
-            if (bounds == null || !bounds.contains(latitude, longitude)) {
+            if (bounds != null) {
+                mapBounds.put(map.getName(), bounds);
+            }
+        }
+        return selectBestMap(
+                selected == null ? null : selected.getName(),
+                mapBounds,
+                latitude,
+                longitude);
+    }
+
+    static String selectBestMap(String selectedName, Map<String, BoundingBox> mapBounds,
+                                double latitude, double longitude) {
+        BoundingBox selectedBounds = mapBounds.get(selectedName);
+        if (selectedBounds != null && selectedBounds.contains(latitude, longitude)) {
+            return selectedName;
+        }
+
+        String bestName = null;
+        double bestArea = Double.MAX_VALUE;
+        for (Map.Entry<String, BoundingBox> entry : mapBounds.entrySet()) {
+            BoundingBox bounds = entry.getValue();
+            if (!bounds.contains(latitude, longitude)) {
                 continue;
             }
             double area = bounds.getLatitudeSpan() * bounds.getLongitudeSpan();
             if (area < bestArea || (area == bestArea
-                    && (bestName == null || map.getName().compareToIgnoreCase(bestName) < 0))) {
+                    && (bestName == null
+                    || entry.getKey().compareToIgnoreCase(bestName) < 0))) {
                 bestArea = area;
-                bestName = map.getName();
+                bestName = entry.getKey();
             }
         }
         return bestName;

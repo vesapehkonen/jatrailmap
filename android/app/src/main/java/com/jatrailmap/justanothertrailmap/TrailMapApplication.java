@@ -9,5 +9,8 @@ public final class TrailMapApplication extends Application {
     public void onCreate() {
         super.onCreate();
         AndroidGraphicFactory.createInstance(this);
+        DiagnosticLog.event(this, "APP", "PROCESS_CREATED",
+                "sdk=" + android.os.Build.VERSION.SDK_INT);
+        TrailUploadReconciler.reconcile(this);
     }
 }

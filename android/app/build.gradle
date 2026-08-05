@@ -28,6 +28,11 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -41,4 +46,5 @@ dependencies {
     implementation('org.mapsforge:mapsforge-map-android:0.25.0')
     implementation('org.mapsforge:mapsforge-themes:0.25.0')
     testImplementation('junit:junit:4.13.2')
+    testImplementation('org.robolectric:robolectric:4.16.1')
 }

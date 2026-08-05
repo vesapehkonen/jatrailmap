@@ -23,7 +23,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public final class TrailUploadWorker extends Worker {
-    public static final String UNIQUE_WORK_NAME = "trail-upload";
+    private static final String UNIQUE_WORK_PREFIX = "trail-upload-";
     public static final String KEY_URL = "url";
     public static final String KEY_USERNAME = "username";
     public static final String KEY_PASSWORD = "password";
@@ -31,6 +31,8 @@ public final class TrailUploadWorker extends Worker {
     public static final String KEY_LOCATION_NAME = "locationName";
     public static final String KEY_DESCRIPTION = "description";
     public static final String KEY_ERROR = "error";
+    public static final String KEY_TRAIL_ID = "trailId";
+    public static final String KEY_UPLOAD_TOKEN = "uploadToken";
 
     private static final int MAX_ATTEMPTS = 8;
 
@@ -45,12 +47,29 @@ public final class TrailUploadWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        RecordingStateStore recordingStateStore = new RecordingStateStore(getApplicationContext());
-        recordingStateStore.markUploading();
+        long trailId = getInputData().getLong(KEY_TRAIL_ID, 0);
+        String uploadToken = value(KEY_UPLOAD_TOKEN);
+        if (trailId <= 0 || uploadToken.isEmpty()) {
+            return Result.failure(new Data.Builder()
+                    .putString(KEY_ERROR, "Upload target is missing")
+                    .build());
+        }
+        try {
+            if (!trailRepository.markUploadInProgress(trailId, uploadToken)) {
+                return Result.failure(new Data.Builder()
+                        .putString(KEY_ERROR, "This upload is no longer active")
+                        .build());
+            }
+        } catch (IOException exception) {
+            return Result.retry();
+        }
+        DiagnosticLog.event(getApplicationContext(), "UPLOAD", "WORK_STARTED",
+                "attempt=" + (getRunAttemptCount() + 1)
+                        + " trail=" + trailId);
         try {
             String url = requireInput(KEY_URL);
             validateHttpsUrl(url);
-            TrailUploadModels.UploadRequest request = buildRequest();
+            TrailUploadModels.UploadRequest request = buildRequest(trailId);
             TrailApi api = new Retrofit.Builder()
                     .baseUrl("https://localhost/")
                     .addConverterFactory(GsonConverterFactory.create(gson))
@@ -59,42 +78,65 @@ public final class TrailUploadWorker extends Worker {
 
             Response<TrailUploadModels.UploadResponse> response =
                     api.uploadTrail(url, request).execute();
+            DiagnosticLog.event(getApplicationContext(), "UPLOAD", "HTTP_RESPONSE",
+                    "code=" + response.code());
             if (!response.isSuccessful()) {
                 if (response.code() == 408 || response.code() == 429 || response.code() >= 500) {
-                    return retryOrFail("Server returned HTTP " + response.code());
+                    return retryOrFail(
+                            "Server returned HTTP " + response.code(), trailId, uploadToken);
                 }
-                return failure("Server returned HTTP " + response.code());
+                return failure(
+                        "Server returned HTTP " + response.code(), trailId, uploadToken);
             }
 
             TrailUploadModels.UploadResponse body = response.body();
             if (body == null) {
-                return retryOrFail("Server returned an empty response");
+                return retryOrFail("Server returned an empty response", trailId, uploadToken);
             }
             if (!body.isSuccessful()) {
-                return failure(body.msg == null ? "Server rejected the upload" : body.msg);
+                return failure(body.msg == null ? "Server rejected the upload" : body.msg,
+                        trailId, uploadToken);
             }
 
-            trailRepository.clearAll();
-            recordingStateStore.reset();
+            boolean uploadMarkedSuccessful;
+            try {
+                uploadMarkedSuccessful =
+                        trailRepository.markUploadSucceeded(trailId, uploadToken);
+            } catch (IOException exception) {
+                DiagnosticLog.error(
+                        getApplicationContext(), "UPLOAD", "SUCCESS_STATE_WRITE_FAILED", exception);
+                return Result.failure(new Data.Builder()
+                        .putString(KEY_ERROR, "Upload succeeded but local status could not be saved")
+                        .build());
+            }
+            if (!uploadMarkedSuccessful) {
+                return Result.failure(new Data.Builder()
+                        .putString(KEY_ERROR, "This upload is no longer active")
+                        .build());
+            }
+            DiagnosticLog.event(getApplicationContext(), "UPLOAD", "SUCCEEDED");
             return Result.success();
         } catch (IllegalArgumentException exception) {
-            return failure(exception.getMessage());
+            DiagnosticLog.error(getApplicationContext(), "UPLOAD", "INPUT_FAILED", exception);
+            return failure(exception.getMessage(), trailId, uploadToken);
         } catch (IOException exception) {
+            DiagnosticLog.error(getApplicationContext(), "UPLOAD", "IO_FAILED", exception);
             return retryOrFail(exception.getMessage() == null
-                    ? "Network or file error" : exception.getMessage());
+                    ? "Network or file error" : exception.getMessage(), trailId, uploadToken);
         } catch (RuntimeException exception) {
+            DiagnosticLog.error(getApplicationContext(), "UPLOAD", "PREPARATION_FAILED", exception);
             return failure(exception.getMessage() == null
-                    ? "Unable to prepare upload" : exception.getMessage());
+                    ? "Unable to prepare upload" : exception.getMessage(), trailId, uploadToken);
         }
     }
 
-    private TrailUploadModels.UploadRequest buildRequest() throws IOException {
+    private TrailUploadModels.UploadRequest buildRequest(long trailId) throws IOException {
         trailRepository.awaitPendingWrites();
-        List<TrailPointEntity> pointEntities = trailRepository.getPoints();
+        List<TrailPointEntity> pointEntities = trailRepository.getPoints(trailId);
         if (pointEntities.isEmpty()) {
             throw new IllegalArgumentException("There is no location data to upload");
         }
-        List<TrailPhotoEntity> photoEntities = trailRepository.getPhotos();
+        List<TrailPhotoEntity> photoEntities = trailRepository.getPhotos(trailId);
         List<TrailUploadModels.PictureUpload> pictures = new ArrayList<>();
         for (TrailPhotoEntity photo : photoEntities) {
             File image = new File(photo.imagePath);
@@ -103,6 +145,10 @@ public final class TrailUploadWorker extends Worker {
                         photo, encodeImage(image)));
             }
         }
+        DiagnosticLog.event(getApplicationContext(), "UPLOAD", "REQUEST_PREPARED",
+                "points=" + pointEntities.size()
+                        + " photosStored=" + photoEntities.size()
+                        + " photosAttached=" + pictures.size());
         return TrailUploadRequestFactory.create(
                 Iso8061DateTime.get(),
                 requireInput(KEY_TRAIL_NAME),
@@ -152,12 +198,34 @@ public final class TrailUploadWorker extends Worker {
         return result == null ? "" : result;
     }
 
-    private Result retryOrFail(String message) {
-        return getRunAttemptCount() + 1 >= MAX_ATTEMPTS ? failure(message) : Result.retry();
+    private Result retryOrFail(String message, long trailId, String uploadToken) {
+        int attempt = getRunAttemptCount() + 1;
+        if (attempt >= MAX_ATTEMPTS) {
+            DiagnosticLog.event(getApplicationContext(), "UPLOAD", "RETRIES_EXHAUSTED",
+                    "attempt=" + attempt);
+            return failure(message, trailId, uploadToken);
+        }
+        DiagnosticLog.event(getApplicationContext(), "UPLOAD", "RETRY_SCHEDULED",
+                "attempt=" + attempt + " nextAttempt=" + (attempt + 1));
+        return Result.retry();
     }
 
-    private Result failure(String message) {
-        new RecordingStateStore(getApplicationContext()).uploadFailed();
+    private Result failure(String message, long trailId, String uploadToken) {
+        trailRepository.markUploadFailed(trailId, uploadToken, safeError(message));
+        DiagnosticLog.event(getApplicationContext(), "UPLOAD", "FAILED",
+                "attempt=" + (getRunAttemptCount() + 1));
         return Result.failure(new Data.Builder().putString(KEY_ERROR, message).build());
+    }
+
+    public static String uniqueWorkName(long trailId) {
+        return UNIQUE_WORK_PREFIX + trailId;
+    }
+
+    private String safeError(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return "Upload failed";
+        }
+        String singleLine = message.replace('\n', ' ').replace('\r', ' ').trim();
+        return singleLine.length() <= 200 ? singleLine : singleLine.substring(0, 200);
     }
 }

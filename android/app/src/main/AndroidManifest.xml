@@ -7,12 +7,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" />
-    <uses-feature android:name="android.hardware.camera.autofocus" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".TrailMapApplication"
@@ -39,6 +43,14 @@
             android:name=".OfflineMapsActivity"
             android:exported="false"
             android:label="@string/offline_maps_title" />
+        <activity
+            android:name=".TrailHistoryActivity"
+            android:exported="false"
+            android:label="@string/trail_history_title" />
+        <activity
+            android:name=".TrailDetailActivity"
+            android:exported="false"
+            android:label="@string/trail_details_title" />
 	<service
             android:name=".LocationTrackingService"
             android:exported="false"
