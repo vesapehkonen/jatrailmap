@@ -12,7 +12,7 @@ credentials, server URLs, trail names, and photo paths.
 Live diagnostics can also be viewed from a connected computer:
 
 ```bash
-adb logcat -v time JATM:I '*:S'
+adb logcat -v time JaTrail:I '*:S'
 ```
 
 ## Tracking and lifecycle
@@ -61,7 +61,7 @@ shows the same session with additional points. `TASK_REMOVED` should be followed
 ### 5C-T05 — Process recreation
 
 1. Start recording and put the application in the background.
-2. With ADB, run `adb shell am kill com.jatrailmap`.
+2. With ADB, run `adb shell am kill com.jatrail`.
 3. Wait up to one minute, walk, and reopen the application.
 
 Expected: Android recreates the sticky foreground service when permitted, or reopening the app
@@ -69,7 +69,7 @@ requests restoration. The session identifier remains unchanged. Look for `PROCES
 `COMMAND_RECEIVED action=system_restart` or `RESTORE_TRACKING_REQUESTED`, and subsequent stored
 points.
 
-`adb shell am force-stop com.jatrailmap` is intentionally not this test: Android force-stop blocks
+`adb shell am force-stop com.jatrail` is intentionally not this test: Android force-stop blocks
 the application and its service until the user launches it again.
 
 ### 5C-T06 — GPS disabled and recovered
@@ -123,7 +123,7 @@ later corrected upload can be queued. Diagnostics must not contain the username,
 ### 5C-U03 — Process death during upload
 
 1. Queue an upload on a slow or temporarily unavailable connection.
-2. Remove the task from Recents or run `adb shell am kill com.jatrailmap`.
+2. Remove the task from Recents or run `adb shell am kill com.jatrail`.
 3. Restore connectivity.
 
 Expected: WorkManager finishes or retries independently of the activity. Reopening the app reflects

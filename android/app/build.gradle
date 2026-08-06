@@ -2,11 +2,11 @@ plugins {
     id 'com.android.application'
 }
 android {
-    namespace = "com.jatrailmap.justanothertrailmap"
+    namespace = "com.jatrail"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = 'com.jatrailmap'
+        applicationId = 'com.jatrail'
         minSdk = 23
         targetSdk = 36
         versionCode = 1

@@ -13,5 +13,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "jatrailmap"
+rootProject.name = "JaTrail"
 include ':app'
