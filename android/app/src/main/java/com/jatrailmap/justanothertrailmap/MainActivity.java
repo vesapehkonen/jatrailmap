@@ -56,7 +56,6 @@ import org.mapsforge.map.layer.overlay.Circle;
 import org.mapsforge.map.layer.overlay.Polyline;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
-import org.mapsforge.map.rendertheme.internal.MapsforgeThemes;
 
 import org.json.JSONObject;
 
@@ -118,11 +117,15 @@ public class MainActivity extends AppCompatActivity {
     private MapView mapView;
     private TileCache tileCache;
     private MapDataStore mapDataStore;
+    private MapThemeStore.Style displayedMapStyle;
     private Marker locationMarker;
     private Circle accuracyCircle;
     private Polyline routePolyline;
     private long lastRenderedPointId;
     private LatLong latestLocation;
+    private LatLong lastDistanceLocation;
+    private double routeDistanceMeters;
+    private long lastGpsPointTimeMs;
     private boolean hasStoredMapPosition;
     private String displayedMapFileName;
     private boolean discardMapPositionOnPause;
@@ -243,8 +246,10 @@ public class MainActivity extends AppCompatActivity {
             startButton.setVisibility(View.VISIBLE);
             startButton.setEnabled(true);
             stopButton.setVisibility(View.GONE);
+            pictureButton.setVisibility(View.GONE);
             pictureButton.setEnabled(false);
             sendButton.setEnabled(false);
+            deleteButton.setVisibility(View.GONE);
             deleteButton.setEnabled(false);
             finishButton.setVisibility(View.GONE);
             break;
@@ -255,8 +260,10 @@ public class MainActivity extends AppCompatActivity {
             startButton.setVisibility(View.VISIBLE);
             startButton.setEnabled(true);
             stopButton.setVisibility(View.GONE);
+            pictureButton.setVisibility(View.GONE);
             pictureButton.setEnabled(false);
             sendButton.setEnabled(false);
+            deleteButton.setVisibility(View.VISIBLE);
             deleteButton.setEnabled(true);
             finishButton.setVisibility(View.VISIBLE);
             finishButton.setEnabled(snapshot.activeTrailId > 0);
@@ -267,13 +274,17 @@ public class MainActivity extends AppCompatActivity {
             startButton.setVisibility(View.GONE);
             stopButton.setVisibility(View.VISIBLE);
             stopButton.setEnabled(true);
+            pictureButton.setVisibility(View.VISIBLE);
             pictureButton.setEnabled(true);
             sendButton.setEnabled(false);
+            deleteButton.setVisibility(View.GONE);
             deleteButton.setEnabled(false);
             finishButton.setVisibility(View.GONE);
             break;
         }
         ((TextView) findViewById(R.id.text_locs)).setText(String.valueOf(snapshot.points));
+        renderDistance();
+        renderRecordingSummary(snapshot);
         timer.render(snapshot.elapsedTimeMs, snapshot.isTracking());
         renderGpsStatus(snapshot);
     }
@@ -289,6 +300,8 @@ public class MainActivity extends AppCompatActivity {
         timer = new Timer((Chronometer) findViewById(R.id.chronometer));
         recordingStateStore = new RecordingStateStore(context);
         trailRepository = new TrailRepository(context);
+        ((Chronometer) findViewById(R.id.chronometer)).setOnChronometerTickListener(
+                chronometer -> renderRecordingSummary(recordingStateStore.getSnapshot()));
         RecordingStateStore.Snapshot restoredState = recordingStateStore.getSnapshot();
         DiagnosticLog.event(this, "UI", "MAIN_CREATED",
                 "status=" + restoredState.status.name()
@@ -297,10 +310,14 @@ public class MainActivity extends AppCompatActivity {
                         + " savedInstance=" + (savedInstanceState != null));
         mapView = findViewById(R.id.map_view);
         mapView.getMapScaleBar().setVisible(true);
-        mapView.setBuiltInZoomControls(true);
+        mapView.setBuiltInZoomControls(false);
         findViewById(R.id.button_select_map).setOnClickListener(view -> offlineMapsLauncher.launch(
                 new Intent(this, OfflineMapsActivity.class)));
         findViewById(R.id.button_recenter).setOnClickListener(view -> centerOnLatestLocation());
+        findViewById(R.id.button_zoom_in).setOnClickListener(view ->
+                mapView.getModel().mapViewPosition.zoomIn());
+        findViewById(R.id.button_zoom_out).setOnClickListener(view ->
+                mapView.getModel().mapViewPosition.zoomOut());
         restoreOfflineMap();
         registerTrackingReceiver();
         if (savedInstanceState != null) {
@@ -457,6 +474,9 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_trail_history) {
             startActivity(new Intent(this, TrailHistoryActivity.class));
             return true;
+        } else if (id == R.id.action_recording_settings) {
+            startActivity(new Intent(this, RecordingSettingsActivity.class));
+            return true;
         } else if (id == R.id.action_export_diagnostics) {
             shareDiagnostics();
             return true;
@@ -487,6 +507,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Log.i(LOG, "onResume()");
         super.onResume();
+        if (displayedMapStyle != null
+                && displayedMapStyle != MapThemeStore.load(this)) {
+            DiagnosticLog.event(this, "MAP", "STYLE_CHANGED",
+                    "from=" + displayedMapStyle.name()
+                            + " to=" + MapThemeStore.load(this).name());
+            recreate();
+            return;
+        }
         DiagnosticLog.event(this, "UI", "MAIN_RESUMED",
                 "status=" + recordingStateStore.getSnapshot().status.name());
         mainActivityResumed = true;
@@ -528,6 +556,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void restoreOfflineMap() {
+        displayedMapStyle = MapThemeStore.load(this);
         File mapFile = OfflineMapStore.getSelectedMap(this);
         if (mapFile == null) {
             DiagnosticLog.event(this, "MAP", "NO_MAP_SELECTED");
@@ -538,14 +567,15 @@ public class MainActivity extends AppCompatActivity {
         }
         try {
             displayedMapFileName = mapFile.getName();
-            tileCache = AndroidUtil.createTileCache(this, "mapcache",
+            tileCache = AndroidUtil.createTileCache(
+                    this, "mapcache-" + displayedMapStyle.cacheSuffix(),
                     mapView.getModel().displayModel.getTileSize(), 1f,
                     mapView.getModel().frameBufferModel.getOverdrawFactor());
             mapDataStore = new MapFile(mapFile);
             selectedMapBounds = mapDataStore.boundingBox();
             TileRendererLayer mapLayer = new TileRendererLayer(tileCache, mapDataStore,
                     mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
-            mapLayer.setXmlRenderTheme(MapsforgeThemes.DEFAULT);
+            mapLayer.setXmlRenderTheme(displayedMapStyle.renderTheme());
             mapView.getLayerManager().getLayers().add(mapLayer);
             findViewById(R.id.map_empty_message).setVisibility(View.GONE);
             DiagnosticLog.event(this, "MAP", "OPENED",
@@ -591,7 +621,12 @@ public class MainActivity extends AppCompatActivity {
             List<LatLong> newLocations = new ArrayList<>();
             for (TrailPointEntity point : points) {
                 if (point.id > lastRenderedPointId) {
-                    newLocations.add(new LatLong(point.latitude, point.longitude));
+                    LatLong location = new LatLong(point.latitude, point.longitude);
+                    if (lastDistanceLocation != null) {
+                        routeDistanceMeters += distanceMeters(lastDistanceLocation, location);
+                    }
+                    lastDistanceLocation = location;
+                    newLocations.add(location);
                     lastRenderedPointId = point.id;
                 }
             }
@@ -601,6 +636,9 @@ public class MainActivity extends AppCompatActivity {
             }
 
             latestLocation = new LatLong(latestPoint.latitude, latestPoint.longitude);
+            lastGpsPointTimeMs = parseTimestamp(latestPoint.timestamp);
+            renderDistance();
+            renderRecordingSummary(recordingStateStore.getSnapshot());
             maybeSelectMapForLocation(latestPoint.id, latestLocation);
             showLocationMarker();
             findViewById(R.id.button_recenter).setEnabled(true);
@@ -673,6 +711,10 @@ public class MainActivity extends AppCompatActivity {
     private void clearMapRoute() {
         lastRenderedPointId = 0;
         latestLocation = null;
+        lastDistanceLocation = null;
+        routeDistanceMeters = 0;
+        lastGpsPointTimeMs = 0;
+        renderDistance();
         if (mapView == null) {
             return;
         }
@@ -708,6 +750,7 @@ public class MainActivity extends AppCompatActivity {
         String action = intent.getAction();
         if (LocationTrackingService.ACTION_LOCATION_RECORDED.equals(action)) {
             hasLiveGpsFix = true;
+            lastGpsPointTimeMs = System.currentTimeMillis();
             liveGpsAccuracyMeters = intent.getBooleanExtra(
                     LocationTrackingService.EXTRA_HAS_ACCURACY, false)
                     ? intent.getFloatExtra(LocationTrackingService.EXTRA_ACCURACY_METERS, 0)
@@ -738,6 +781,78 @@ public class MainActivity extends AppCompatActivity {
         } else {
             gpsStatus.setText(getString(
                     R.string.gps_accuracy_weak, liveGpsAccuracyMeters));
+        }
+    }
+
+    private void renderDistance() {
+        TextView distance = findViewById(R.id.text_distance);
+        if (distance == null) {
+            return;
+        }
+        if (routeDistanceMeters < 1000) {
+            distance.setText(getString(R.string.trail_distance_meters, routeDistanceMeters));
+        } else {
+            distance.setText(getString(
+                    R.string.trail_distance_kilometers, routeDistanceMeters / 1000));
+        }
+    }
+
+    private void renderRecordingSummary(RecordingStateStore.Snapshot snapshot) {
+        if (snapshot == null || snapshot.status == RecordingStateStore.Status.INITIAL) {
+            return;
+        }
+        TextView summary = findViewById(R.id.text_recording_summary);
+        if (snapshot.points == 0 || lastGpsPointTimeMs <= 0) {
+            if (snapshot.isTracking()) {
+                summary.setText(R.string.waiting_for_first_gps_point);
+            }
+            return;
+        }
+        long ageSeconds = Math.max(
+                0, (System.currentTimeMillis() - lastGpsPointTimeMs) / 1000);
+        if (ageSeconds < 10) {
+            summary.setText(R.string.last_gps_point_now);
+        } else if (ageSeconds < 60) {
+            summary.setText(getString(R.string.last_gps_point_seconds, ageSeconds));
+        } else if (ageSeconds < 3600) {
+            summary.setText(getString(R.string.last_gps_point_minutes, ageSeconds / 60));
+        } else {
+            summary.setText(getString(R.string.last_gps_point_hours, ageSeconds / 3600));
+        }
+    }
+
+    static double distanceMeters(LatLong start, LatLong end) {
+        double latitudeRadians = Math.toRadians(end.latitude - start.latitude);
+        double longitudeRadians = Math.toRadians(end.longitude - start.longitude);
+        double startLatitude = Math.toRadians(start.latitude);
+        double endLatitude = Math.toRadians(end.latitude);
+        double haversine = Math.sin(latitudeRadians / 2) * Math.sin(latitudeRadians / 2)
+                + Math.cos(startLatitude) * Math.cos(endLatitude)
+                * Math.sin(longitudeRadians / 2) * Math.sin(longitudeRadians / 2);
+        haversine = Math.max(0, Math.min(1, haversine));
+        return 6371000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+    }
+
+    private long parseTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.isEmpty()) {
+            return 0;
+        }
+        try {
+            String normalized = timestamp;
+            if (normalized.endsWith("Z")) {
+                normalized = normalized.substring(0, normalized.length() - 1) + "+0000";
+            } else if (normalized.length() >= 6
+                    && normalized.charAt(normalized.length() - 3) == ':') {
+                normalized = normalized.substring(0, normalized.length() - 3)
+                        + normalized.substring(normalized.length() - 2);
+            }
+            SimpleDateFormat format = new SimpleDateFormat(
+                    "yyyy-MM-dd'T'HH:mm:ssZ", Locale.US);
+            format.setLenient(false);
+            Date date = format.parse(normalized);
+            return date == null ? 0 : date.getTime();
+        } catch (java.text.ParseException exception) {
+            return 0;
         }
     }
 

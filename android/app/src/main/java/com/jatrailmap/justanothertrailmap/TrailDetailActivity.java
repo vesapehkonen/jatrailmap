@@ -27,7 +27,6 @@ import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.overlay.Polyline;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
-import org.mapsforge.map.rendertheme.internal.MapsforgeThemes;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -43,6 +42,7 @@ public final class TrailDetailActivity extends AppCompatActivity {
     private List<TrailPointEntity> points = new ArrayList<>();
     private MapView mapView;
     private MapDataStore mapDataStore;
+    private MapThemeStore.Style displayedMapStyle;
     private Polyline routePolyline;
     private final ActivityResultLauncher<Intent> transferLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> loadTrail());
@@ -66,12 +66,16 @@ public final class TrailDetailActivity extends AppCompatActivity {
         recordingStateStore = new RecordingStateStore(this);
         mapView = findViewById(R.id.trail_detail_map);
         mapView.getMapScaleBar().setVisible(true);
-        mapView.setBuiltInZoomControls(true);
+        mapView.setBuiltInZoomControls(false);
         findViewById(R.id.button_trail_rename).setOnClickListener(view -> renameTrail());
         findViewById(R.id.button_trail_delete).setOnClickListener(view -> confirmDelete());
         findViewById(R.id.button_trail_upload).setOnClickListener(view -> uploadTrail());
         findViewById(R.id.button_trail_maps).setOnClickListener(view -> mapsLauncher.launch(
                 new Intent(this, OfflineMapsActivity.class)));
+        findViewById(R.id.button_trail_zoom_in).setOnClickListener(view ->
+                mapView.getModel().mapViewPosition.zoomIn());
+        findViewById(R.id.button_trail_zoom_out).setOnClickListener(view ->
+                mapView.getModel().mapViewPosition.zoomOut());
         restoreOfflineMap();
     }
 
@@ -125,19 +129,43 @@ public final class TrailDetailActivity extends AppCompatActivity {
                         : displayDistance(TrailRepository.calculateDistanceMeters(points))));
         TextView state = findViewById(R.id.trail_detail_upload_state);
         state.setText(uploadStateLabel(trail.uploadState));
-        if (TrailEntity.UPLOAD_FAILED.equals(trail.uploadState)
-                && trail.uploadError != null && !trail.uploadError.isEmpty()) {
-            state.append(" · " + trail.uploadError);
-        }
+        TextView uploadMessage = findViewById(R.id.trail_detail_upload_message);
+        uploadMessage.setVisibility(View.GONE);
         boolean pending = TrailEntity.UPLOAD_QUEUED.equals(trail.uploadState)
                 || TrailEntity.UPLOAD_UPLOADING.equals(trail.uploadState);
         boolean uploaded = TrailEntity.UPLOAD_UPLOADED.equals(trail.uploadState);
+        boolean failed = TrailEntity.UPLOAD_FAILED.equals(trail.uploadState);
+        boolean finished = TrailEntity.RECORDING_FINISHED.equals(trail.recordingState);
         boolean activeTrail = snapshot.activeTrailId == trailId;
         boolean activeTracking = activeTrail && snapshot.isTracking();
-        ((Button) findViewById(R.id.button_trail_upload))
-                .setEnabled(!pending && !uploaded && !activeTrail && !points.isEmpty()
-                        && TrailEntity.RECORDING_FINISHED.equals(trail.recordingState));
-        ((Button) findViewById(R.id.button_trail_delete)).setEnabled(!activeTracking && !pending);
+        boolean canUpload = !pending && !uploaded && !activeTrail
+                && !points.isEmpty() && finished;
+        Button uploadButton = findViewById(R.id.button_trail_upload);
+        uploadButton.setVisibility(canUpload ? View.VISIBLE : View.GONE);
+        uploadButton.setEnabled(canUpload);
+        uploadButton.setText(failed ? R.string.retry_upload : R.string.upload_trail);
+        Button deleteButton = findViewById(R.id.button_trail_delete);
+        deleteButton.setVisibility(!activeTracking && !pending ? View.VISIBLE : View.GONE);
+
+        if (activeTrail || !finished) {
+            showUploadMessage(uploadMessage, R.string.trail_upload_finish_first);
+        } else if (points.isEmpty()) {
+            showUploadMessage(uploadMessage, R.string.trail_upload_no_gps_points);
+        } else if (pending) {
+            showUploadMessage(uploadMessage, R.string.trail_upload_pending_message);
+        } else if (uploaded) {
+            showUploadMessage(uploadMessage, R.string.trail_upload_uploaded_message);
+        } else if (failed) {
+            uploadMessage.setVisibility(View.VISIBLE);
+            uploadMessage.setText(trail.uploadError == null || trail.uploadError.trim().isEmpty()
+                    ? getString(R.string.trail_upload_failed_message)
+                    : getString(R.string.trail_upload_failed_detail, trail.uploadError));
+        }
+    }
+
+    private void showUploadMessage(TextView view, int message) {
+        view.setText(message);
+        view.setVisibility(View.VISIBLE);
     }
 
     private void renameTrail() {
@@ -188,8 +216,15 @@ public final class TrailDetailActivity extends AppCompatActivity {
 
     private void uploadTrail() {
         RecordingStateStore.Snapshot snapshot = recordingStateStore.getSnapshot();
-        if (snapshot.activeTrailId == trailId && snapshot.isTracking()) {
+        if (snapshot.activeTrailId == trailId
+                || !TrailEntity.RECORDING_FINISHED.equals(trail.recordingState)) {
             Toast.makeText(this, R.string.active_trail_upload_blocked, Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (points.isEmpty()
+                || TrailEntity.UPLOAD_QUEUED.equals(trail.uploadState)
+                || TrailEntity.UPLOAD_UPLOADING.equals(trail.uploadState)
+                || TrailEntity.UPLOAD_UPLOADED.equals(trail.uploadState)) {
             return;
         }
         Intent intent = new Intent(this, TransferActivity.class)
@@ -200,6 +235,7 @@ public final class TrailDetailActivity extends AppCompatActivity {
     }
 
     private void restoreOfflineMap() {
+        displayedMapStyle = MapThemeStore.load(this);
         File mapFile = OfflineMapStore.getSelectedMap(this);
         if (mapFile == null) {
             mapView.setCenter(new LatLong(0, 0));
@@ -207,14 +243,15 @@ public final class TrailDetailActivity extends AppCompatActivity {
             return;
         }
         try {
-            TileCache tileCache = AndroidUtil.createTileCache(this, "trail-detail-mapcache",
+            TileCache tileCache = AndroidUtil.createTileCache(
+                    this, "trail-detail-mapcache-" + displayedMapStyle.cacheSuffix(),
                     mapView.getModel().displayModel.getTileSize(), 1f,
                     mapView.getModel().frameBufferModel.getOverdrawFactor());
             mapDataStore = new MapFile(mapFile);
             TileRendererLayer layer = new TileRendererLayer(
                     tileCache, mapDataStore, mapView.getModel().mapViewPosition,
                     AndroidGraphicFactory.INSTANCE);
-            layer.setXmlRenderTheme(MapsforgeThemes.DEFAULT);
+            layer.setXmlRenderTheme(displayedMapStyle.renderTheme());
             mapView.getLayerManager().getLayers().add(layer);
             findViewById(R.id.trail_detail_map_message).setVisibility(View.GONE);
         } catch (RuntimeException exception) {

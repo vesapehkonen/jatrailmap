@@ -26,6 +26,8 @@ public class LocationTracker implements LocationListener {
     private LocationManager locationManager;
     private Context context;
     private Listener listener;
+    private RecordingSettings settings;
+    private Location lastRecordedLocation;
 
     private enum State {idle, active}
 
@@ -40,8 +42,12 @@ public class LocationTracker implements LocationListener {
     // Start to get GPS coordinates
     public boolean start() {
         Log.i(LOG, "LocationTracker: start");
+        settings = RecordingSettings.load(context);
         DiagnosticLog.event(context, "LOCATION", "START_REQUESTED",
-                "minTimeMs=20000 minDistanceM=20");
+                "intervalMs=" + settings.intervalMs()
+                        + " minDistanceM=" + settings.minimumDistanceMeters
+                        + " maxAccuracyM=" + settings.maximumAccuracyMeters
+                        + " stationary=" + settings.recordStationary);
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             Log.w(LOG, "Location permission is not granted");
@@ -51,9 +57,9 @@ public class LocationTracker implements LocationListener {
         }
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
-        // Request coordinates on every 20 seconds and if location changes least 20 meters
         try {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 20000, 20, this);
+            locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER, settings.intervalMs(), 0, this);
         } catch (SecurityException ex) {
             Log.e(LOG, "Fail to request location update: " + ex.getMessage());
             DiagnosticLog.error(context, "LOCATION", "UPDATE_REQUEST_FAILED", ex);
@@ -68,6 +74,7 @@ public class LocationTracker implements LocationListener {
             return false;
         }
         state = State.active;
+        lastRecordedLocation = null;
         DiagnosticLog.event(context, "LOCATION", "UPDATES_REGISTERED",
                 "provider=gps");
         return true;
@@ -119,7 +126,59 @@ public class LocationTracker implements LocationListener {
     @Override
     public void onLocationChanged(Location loc) {
         DiagnosticLog.event(context, "LOCATION", "FIX_RECEIVED", locationDetails(loc));
+        String rejectionReason = rejectionReason(loc, lastRecordedLocation, settings);
+        if (rejectionReason != null) {
+            DiagnosticLog.event(context, "LOCATION", "FIX_REJECTED",
+                    "reason=" + rejectionReason + " " + locationDetails(loc));
+            return;
+        }
+        lastRecordedLocation = new Location(loc);
         listener.onLocationRecorded(loc);
+    }
+
+    static boolean shouldRecord(Location location, Location previous,
+                                RecordingSettings settings) {
+        return rejectionReason(location, previous, settings) == null;
+    }
+
+    private static String rejectionReason(Location location, Location previous,
+                                          RecordingSettings settings) {
+        if (settings == null) {
+            return null;
+        }
+        if (settings.maximumAccuracyMeters > 0) {
+            if (!location.hasAccuracy()) {
+                return "accuracy_unavailable";
+            }
+            if (location.getAccuracy() > settings.maximumAccuracyMeters) {
+                return "accuracy_too_low";
+            }
+        }
+        if (previous == null) {
+            return null;
+        }
+        long elapsedMs = elapsedMs(previous, location);
+        if (elapsedMs >= 0 && elapsedMs < settings.intervalMs()) {
+            return "interval_not_reached";
+        }
+        if (!settings.recordStationary
+                && settings.minimumDistanceMeters > 0
+                && previous.distanceTo(location) < settings.minimumDistanceMeters) {
+            return "movement_too_small";
+        }
+        return null;
+    }
+
+    private static long elapsedMs(Location previous, Location current) {
+        long previousNanos = previous.getElapsedRealtimeNanos();
+        long currentNanos = current.getElapsedRealtimeNanos();
+        if (currentNanos > 0 && currentNanos >= previousNanos) {
+            return (currentNanos - previousNanos) / 1_000_000L;
+        }
+        if (previous.getTime() > 0 && current.getTime() >= previous.getTime()) {
+            return current.getTime() - previous.getTime();
+        }
+        return -1;
     }
 
     @Override

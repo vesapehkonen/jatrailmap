@@ -4,6 +4,9 @@
     <item android:id="@+id/action_trail_history"
         android:title="@string/trail_history_title"
         android:orderInCategory="90" app:showAsAction="never" />
+    <item android:id="@+id/action_recording_settings"
+        android:title="@string/recording_settings_title"
+        android:orderInCategory="95" app:showAsAction="never" />
     <item android:id="@+id/action_export_diagnostics"
         android:title="@string/export_diagnostics"
         android:orderInCategory="100" app:showAsAction="never" />

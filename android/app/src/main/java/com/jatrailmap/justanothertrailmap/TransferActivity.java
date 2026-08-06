@@ -3,6 +3,7 @@ package com.jatrailmap.justanothertrailmap;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -18,6 +19,8 @@ import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
+
+import com.google.android.material.textfield.TextInputLayout;
 
 import org.json.JSONObject;
 
@@ -47,6 +50,10 @@ public class TransferActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_transfer);
+        setTitle(R.string.title_activity_transfer);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
         trailId = getIntent().getLongExtra(EXTRA_TRAIL_ID, 0);
         pointCount = getIntent().getIntExtra(EXTRA_POINT_COUNT, 0);
         trailRepository = new TrailRepository(this);
@@ -55,6 +62,7 @@ public class TransferActivity extends AppCompatActivity {
         if (selectedTrailName != null && !selectedTrailName.trim().isEmpty()) {
             setText(R.id.edit_trailname, selectedTrailName);
         }
+        renderHeader();
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -62,6 +70,16 @@ public class TransferActivity extends AppCompatActivity {
                 finish();
             }
         });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            setResult(RESULT_CANCELED);
+            finish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     public void onClick(View view) {
@@ -80,18 +98,9 @@ public class TransferActivity extends AppCompatActivity {
         String trailName = text(R.id.edit_trailname);
         String locationName = text(R.id.edit_locationname);
         String description = text(R.id.edit_description);
-        saveForm(url, username, password, trailName, locationName, description);
-
-        if (username.isEmpty() || password.isEmpty() || trailName.isEmpty()) {
+        if (!validateForm(url, username, password, trailName)) {
             DiagnosticLog.event(this, "UPLOAD", "QUEUE_REJECTED",
-                    "reason=required_fields");
-            Toast.makeText(this, R.string.upload_required_fields, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (!isValidHttpsUrl(url)) {
-            DiagnosticLog.event(this, "UPLOAD", "QUEUE_REJECTED",
-                    "reason=invalid_https_url");
-            Toast.makeText(this, R.string.upload_https_required, Toast.LENGTH_LONG).show();
+                    "reason=invalid_form");
             return;
         }
         if (trailId <= 0 || pointCount == 0) {
@@ -100,6 +109,7 @@ public class TransferActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.upload_no_locations, Toast.LENGTH_LONG).show();
             return;
         }
+        saveForm(url, username, password, trailName, locationName, description);
 
         Data input = new Data.Builder()
                 .putString(TrailUploadWorker.KEY_URL, url)
@@ -161,6 +171,57 @@ public class TransferActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private boolean validateForm(String url, String username, String password,
+                                 String trailName) {
+        TextInputLayout serverInput = findViewById(R.id.input_server_url);
+        TextInputLayout usernameInput = findViewById(R.id.input_username);
+        TextInputLayout passwordInput = findViewById(R.id.input_password);
+        TextInputLayout trailNameInput = findViewById(R.id.input_trail_name);
+        serverInput.setError(null);
+        usernameInput.setError(null);
+        passwordInput.setError(null);
+        trailNameInput.setError(null);
+
+        View firstInvalid = null;
+        if (trailName.isEmpty()) {
+            trailNameInput.setError(getString(R.string.required_field));
+            firstInvalid = findViewById(R.id.edit_trailname);
+        }
+        if (!isValidHttpsUrl(url)) {
+            serverInput.setError(getString(R.string.invalid_https_server));
+            if (firstInvalid == null) {
+                firstInvalid = findViewById(R.id.edit_server_url);
+            }
+        }
+        if (username.isEmpty()) {
+            usernameInput.setError(getString(R.string.required_field));
+            if (firstInvalid == null) {
+                firstInvalid = findViewById(R.id.edit_username);
+            }
+        }
+        if (password.isEmpty()) {
+            passwordInput.setError(getString(R.string.required_field));
+            if (firstInvalid == null) {
+                firstInvalid = findViewById(R.id.edit_password);
+            }
+        }
+        if (firstInvalid != null) {
+            firstInvalid.requestFocus();
+            Toast.makeText(this, R.string.upload_fix_fields, Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    private void renderHeader() {
+        String trailName = text(R.id.edit_trailname);
+        if (trailName.isEmpty()) {
+            trailName = getString(R.string.upload_trail_summary_empty);
+        }
+        ((android.widget.TextView) findViewById(R.id.text_upload_trail_summary))
+                .setText(getString(R.string.upload_trail_summary, trailName, pointCount));
     }
 
     private void observeUpload(WorkManager workManager, OneTimeWorkRequest request,
