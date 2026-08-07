@@ -142,7 +142,7 @@ public class LocationTrackingService extends Service implements LocationTracker.
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_jatrail_notification)
                 .setContentTitle(getString(R.string.tracking_notification_title))
                 .setContentText(getString(R.string.tracking_notification_text))
                 .setContentIntent(openApp)

@@ -1,0 +1,282 @@
+ANDROID BUILD GUIDE
+
+This guide explains how to install the Android SDK command-line tools and build
+an Android application on Ubuntu without Android Studio.
+
+
+1. Install prerequisites
+
+Install Java and required utilities:
+
+    sudo apt update
+    sudo apt install -y openjdk-21-jdk unzip wget
+
+Verify Java installation:
+
+    java -version
+    javac -version
+
+
+2. Install Android SDK Command-Line Tools
+
+Create the Android SDK directory:
+
+    mkdir -p ~/Android/Sdk/cmdline-tools
+    cd /tmp
+
+Download the latest Android SDK command-line tools:
+
+    wget https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip
+
+Extract the archive:
+
+    unzip commandlinetools-linux-14742923_latest.zip
+
+Move the extracted directory:
+
+    mkdir -p ~/Android/Sdk/cmdline-tools
+    mv cmdline-tools ~/Android/Sdk/cmdline-tools/latest
+
+The resulting directory should look like:
+
+    ~/Android/Sdk/
+        cmdline-tools/
+            latest/
+                bin/
+                lib/
+                source.properties
+
+
+3. Configure environment variables
+
+Edit ~/.bashrc and add:
+
+    export ANDROID_HOME=$HOME/Android/Sdk
+    export ANDROID_SDK_ROOT=$ANDROID_HOME
+    export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+    export PATH=$PATH:$ANDROID_HOME/platform-tools
+
+Reload the shell:
+
+    source ~/.bashrc
+
+Verify the installation:
+
+    sdkmanager --version
+
+
+4. Install Android SDK packages
+
+Install the required SDK components:
+
+    sdkmanager \
+        "platform-tools" \
+        "platforms;android-36" \
+        "build-tools;36.0.0"
+
+Accept all SDK licenses:
+
+    sdkmanager --licenses
+
+
+5. Configure the Android project
+
+Go to the Android project directory.
+
+This is the directory containing:
+
+    gradlew
+    build.gradle
+    settings.gradle
+    app/
+
+Create a file named:
+
+    local.properties
+
+Add:
+
+    sdk.dir=/home/<YOUR_USERNAME>/Android/Sdk
+
+Example:
+
+    sdk.dir=/home/vesa/Android/Sdk
+
+
+6. Build the application
+
+Make the Gradle wrapper executable:
+
+    chmod +x gradlew
+
+Build a debug APK:
+
+    ./gradlew assembleDebug
+
+The APK is usually created at:
+
+    app/build/outputs/apk/debug/app-debug.apk
+
+
+7. Install application on Android phone
+
+Enable Developer Options on the phone.
+
+Enable USB debugging.
+
+Connect the phone with USB cable.
+
+Check that the phone is detected:
+
+    adb devices
+
+Install the APK:
+
+    adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+The -r option replaces an existing installation while keeping application
+data when possible.
+
+
+8. Useful Gradle commands
+
+Clean project:
+
+    ./gradlew clean
+
+Build project:
+
+    ./gradlew build
+
+Build debug APK:
+
+    ./gradlew assembleDebug
+
+Install directly to connected device:
+
+    ./gradlew installDebug
+
+Show Gradle version:
+
+    ./gradlew --version
+
+
+9. Output files
+
+Debug APK:
+
+    app/build/outputs/apk/debug/app-debug.apk
+
+Release APK:
+
+    app/build/outputs/apk/release/
+
+
+10. Troubleshooting
+
+SDK location not found:
+
+Create or update:
+
+    local.properties
+
+with:
+
+    sdk.dir=/home/<YOUR_USERNAME>/Android/Sdk
+
+
+sdkmanager command not found:
+
+Check that this directory is in PATH:
+
+    $ANDROID_HOME/cmdline-tools/latest/bin
+
+Reload:
+
+    source ~/.bashrc
+
+
+adb command not found:
+
+Check that this directory is in PATH:
+
+    $ANDROID_HOME/platform-tools
+
+Reload:
+
+    source ~/.bashrc
+
+
+License errors:
+
+Run:
+
+    sdkmanager --licenses
+
+
+Missing Android platform:
+
+Install the required platform:
+
+    sdkmanager "platforms;android-36"
+
+Replace android-36 with the API level required by the project.
+
+
+Missing build tools:
+
+Install the required version:
+
+    sdkmanager "build-tools;36.0.0"
+
+Replace 36.0.0 with the version required by the project.
+
+
+Build errors:
+
+Show detailed error information:
+
+    ./gradlew assembleDebug --stacktrace
+
+or:
+
+    ./gradlew assembleDebug --info
+
+
+11. Android project compatibility notes
+
+Android Studio is not required.
+
+The Gradle Wrapper (gradlew) downloads the Gradle version required by the
+project.
+
+The Android SDK command-line tools are enough for:
+
+    - building APK files
+    - installing applications
+    - debugging applications
+
+The Android Gradle Plugin (AGP) version and Gradle version must be compatible.
+
+The Java version must also match the Android Gradle Plugin requirements.
+
+Check Java:
+
+    java -version
+
+Check Gradle:
+
+    ./gradlew --version
+
+
+12. Useful commands summary
+
+    java -version
+    javac -version
+    sdkmanager --version
+    adb version
+    adb devices
+    ./gradlew --version
+    ./gradlew assembleDebug
+    ./gradlew installDebug
+    adb install -r app/build/outputs/apk/debug/app-debug.apk

@@ -1,8 +1,6 @@
 package com.jatrail;
 
 import android.content.Context;
-import android.util.Base64;
-
 import androidx.annotation.NonNull;
 import androidx.work.Data;
 import androidx.work.Worker;
@@ -10,19 +8,24 @@ import androidx.work.WorkerParameters;
 
 import com.google.gson.Gson;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
+import okhttp3.ResponseBody;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public final class TrailUploadWorker extends Worker {
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final MediaType JPEG = MediaType.get("image/jpeg");
     private static final String UNIQUE_WORK_PREFIX = "trail-upload-";
     public static final String KEY_URL = "url";
     public static final String KEY_USERNAME = "username";
@@ -35,6 +38,7 @@ public final class TrailUploadWorker extends Worker {
     public static final String KEY_UPLOAD_TOKEN = "uploadToken";
 
     private static final int MAX_ATTEMPTS = 8;
+    static final int CALL_TIMEOUT_MINUTES = 10;
 
     private final Gson gson = new Gson();
     private final TrailRepository trailRepository;
@@ -68,25 +72,39 @@ public final class TrailUploadWorker extends Worker {
                         + " trail=" + trailId);
         try {
             String url = requireInput(KEY_URL);
-            validateHttpsUrl(url);
-            TrailUploadModels.UploadRequest request = buildRequest(trailId);
+            validateServerUrl(url);
+            PreparedUpload upload = buildRequest(trailId);
+            OkHttpClient httpClient = new OkHttpClient.Builder()
+                    .callTimeout(CALL_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+                    .build();
             TrailApi api = new Retrofit.Builder()
                     .baseUrl("https://localhost/")
+                    .client(httpClient)
                     .addConverterFactory(GsonConverterFactory.create(gson))
                     .build()
                     .create(TrailApi.class);
 
             Response<TrailUploadModels.UploadResponse> response =
-                    api.uploadTrail(url, request).execute();
+                    api.uploadTrail(
+                            url,
+                            RequestBody.create(gson.toJson(upload.manifest), JSON),
+                            upload.photos).execute();
             DiagnosticLog.event(getApplicationContext(), "UPLOAD", "HTTP_RESPONSE",
                     "code=" + response.code());
             if (!response.isSuccessful()) {
-                if (response.code() == 408 || response.code() == 429 || response.code() >= 500) {
+                TrailUploadModels.UploadResponse error = parseError(response.errorBody());
+                String errorCode = error == null ? null : error.errorCode;
+                String message = error == null || error.message == null
+                        ? "Server returned HTTP " + response.code()
+                        : error.message;
+                DiagnosticLog.event(getApplicationContext(), "UPLOAD", "API_ERROR",
+                        "code=" + response.code()
+                                + " errorCode=" + (errorCode == null ? "unknown" : errorCode));
+                if (shouldRetry(response.code(), errorCode)) {
                     return retryOrFail(
-                            "Server returned HTTP " + response.code(), trailId, uploadToken);
+                            message, trailId, uploadToken);
                 }
-                return failure(
-                        "Server returned HTTP " + response.code(), trailId, uploadToken);
+                return failure(message, trailId, uploadToken);
             }
 
             TrailUploadModels.UploadResponse body = response.body();
@@ -94,7 +112,8 @@ public final class TrailUploadWorker extends Worker {
                 return retryOrFail("Server returned an empty response", trailId, uploadToken);
             }
             if (!body.isSuccessful()) {
-                return failure(body.msg == null ? "Server rejected the upload" : body.msg,
+                return failure(body.message == null
+                                ? "Server rejected the upload" : body.message,
                         trailId, uploadToken);
             }
 
@@ -130,7 +149,7 @@ public final class TrailUploadWorker extends Worker {
         }
     }
 
-    private TrailUploadModels.UploadRequest buildRequest(long trailId) throws IOException {
+    private PreparedUpload buildRequest(long trailId) throws IOException {
         trailRepository.awaitPendingWrites();
         List<TrailPointEntity> pointEntities = trailRepository.getPoints(trailId);
         if (pointEntities.isEmpty()) {
@@ -138,18 +157,27 @@ public final class TrailUploadWorker extends Worker {
         }
         List<TrailPhotoEntity> photoEntities = trailRepository.getPhotos(trailId);
         List<TrailUploadModels.PictureUpload> pictures = new ArrayList<>();
+        List<MultipartBody.Part> photoParts = new ArrayList<>();
         for (TrailPhotoEntity photo : photoEntities) {
             File image = new File(photo.imagePath);
             if (image.exists()) {
-                pictures.add(new TrailUploadModels.PictureUpload(
-                        photo, encodeImage(image)));
+                TrailPhotoProcessor.ProcessedPhoto processed =
+                        TrailPhotoProcessor.process(image);
+                pictures.add(new TrailUploadModels.PictureUpload(photo, processed.filename));
+                photoParts.add(MultipartBody.Part.createFormData(
+                        "photos",
+                        processed.filename,
+                        RequestBody.create(processed.jpegBytes, JPEG)));
+                DiagnosticLog.event(getApplicationContext(), "UPLOAD", "PHOTO_PREPARED",
+                        "width=" + processed.width + " height=" + processed.height
+                                + " bytes=" + processed.jpegBytes.length);
             }
         }
         DiagnosticLog.event(getApplicationContext(), "UPLOAD", "REQUEST_PREPARED",
                 "points=" + pointEntities.size()
                         + " photosStored=" + photoEntities.size()
                         + " photosAttached=" + pictures.size());
-        return TrailUploadRequestFactory.create(
+        TrailUploadModels.UploadRequest manifest = TrailUploadRequestFactory.create(
                 Iso8061DateTime.get(),
                 requireInput(KEY_TRAIL_NAME),
                 value(KEY_LOCATION_NAME),
@@ -158,30 +186,24 @@ public final class TrailUploadWorker extends Worker {
                 requireInput(KEY_PASSWORD),
                 pointEntities,
                 pictures,
-                !photoEntities.isEmpty());
+                !pictures.isEmpty());
+        return new PreparedUpload(manifest, photoParts);
     }
 
-    private String encodeImage(File image) throws IOException {
-        byte[] buffer = new byte[8192];
-        try (FileInputStream input = new FileInputStream(image);
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            int count;
-            while ((count = input.read(buffer)) != -1) {
-                output.write(buffer, 0, count);
-            }
-            return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+    private static final class PreparedUpload {
+        final TrailUploadModels.UploadRequest manifest;
+        final List<MultipartBody.Part> photos;
+
+        PreparedUpload(TrailUploadModels.UploadRequest manifest,
+                       List<MultipartBody.Part> photos) {
+            this.manifest = manifest;
+            this.photos = photos;
         }
     }
 
-    private void validateHttpsUrl(String url) {
-        URI uri;
-        try {
-            uri = URI.create(url);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("Server URL is invalid");
-        }
-        if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null) {
-            throw new IllegalArgumentException("Server URL must be a valid HTTPS URL");
+    private void validateServerUrl(String url) {
+        if (!TrailServerUrl.isValid(url)) {
+            throw new IllegalArgumentException("Server URL must use HTTP or HTTPS");
         }
     }
 
@@ -196,6 +218,25 @@ public final class TrailUploadWorker extends Worker {
     private String value(String key) {
         String result = getInputData().getString(key);
         return result == null ? "" : result;
+    }
+
+    private TrailUploadModels.UploadResponse parseError(ResponseBody errorBody) {
+        if (errorBody == null) {
+            return null;
+        }
+        try {
+            return gson.fromJson(errorBody.charStream(), TrailUploadModels.UploadResponse.class);
+        } catch (RuntimeException exception) {
+            DiagnosticLog.error(getApplicationContext(), "UPLOAD", "ERROR_RESPONSE_INVALID",
+                    exception);
+            return null;
+        }
+    }
+
+    static boolean shouldRetry(int httpStatus, String errorCode) {
+        return httpStatus == 408
+                || httpStatus == 429
+                || (httpStatus == 503 && "storage_failure".equals(errorCode));
     }
 
     private Result retryOrFail(String message, long trailId, String uploadToken) {

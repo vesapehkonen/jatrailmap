@@ -1,6 +1,7 @@
 package com.jatrail;
 
 import com.google.gson.annotations.SerializedName;
+import com.google.gson.JsonObject;
 
 import java.util.List;
 import java.util.Arrays;
@@ -94,26 +95,29 @@ public final class TrailUploadModels {
         final String picturename = "";
         final String description = "";
         final GeoPoint loc;
-        final String file;
 
-        PictureUpload(PictureMetadata metadata, String encodedImage) {
+        PictureUpload(PictureMetadata metadata) {
             timestamp = metadata.timestamp;
             filename = metadata.imagepath;
             loc = metadata.loc;
-            file = encodedImage;
         }
 
-        PictureUpload(TrailPhotoEntity photo, String encodedImage) {
+        PictureUpload(TrailPhotoEntity photo, String uploadFilename) {
             timestamp = photo.timestamp;
-            filename = photo.imagePath;
+            filename = uploadFilename;
             loc = new GeoPoint(photo.longitude, photo.latitude, photo.altitude);
-            file = encodedImage;
         }
     }
 
     public static final class UploadResponse {
         public String status;
-        public String msg;
+        public String message;
+        public String trailid;
+
+        @SerializedName("error_code")
+        public String errorCode;
+
+        public JsonObject details;
 
         public boolean isSuccessful() {
             return "ok".equals(status);

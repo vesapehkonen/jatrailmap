@@ -28,7 +28,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -189,8 +188,8 @@ public class TransferActivity extends AppCompatActivity {
             trailNameInput.setError(getString(R.string.required_field));
             firstInvalid = findViewById(R.id.edit_trailname);
         }
-        if (!isValidHttpsUrl(url)) {
-            serverInput.setError(getString(R.string.invalid_https_server));
+        if (!TrailServerUrl.isValid(url)) {
+            serverInput.setError(getString(R.string.invalid_server_url));
             if (firstInvalid == null) {
                 firstInvalid = findViewById(R.id.edit_server_url);
             }
@@ -254,15 +253,6 @@ public class TransferActivity extends AppCompatActivity {
         return ((EditText) findViewById(viewId)).getText().toString().trim();
     }
 
-    private boolean isValidHttpsUrl(String value) {
-        try {
-            URI uri = URI.create(value);
-            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
-        } catch (IllegalArgumentException exception) {
-            return false;
-        }
-    }
-
     private void showDialog(String title, String message) {
         new AlertDialog.Builder(this)
                 .setTitle(title)
@@ -308,7 +298,11 @@ public class TransferActivity extends AppCompatActivity {
                 text.append(buffer, 0, count);
             }
             JSONObject json = new JSONObject(text.toString());
-            setText(R.id.edit_server_url, json.optString("url"));
+            String savedUrl = json.optString("url");
+            if ("https://jatrailmap.com/addtrail".equals(savedUrl)) {
+                savedUrl = getString(R.string.default_server_url);
+            }
+            setText(R.id.edit_server_url, savedUrl);
             setText(R.id.edit_username, json.optString("username"));
             setText(R.id.edit_password, json.optString("password"));
             setText(R.id.edit_trailname, json.optString("trailname"));

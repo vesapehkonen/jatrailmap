@@ -42,7 +42,7 @@
     <string name="edit_locationname">Location</string>
     <string name="edit_description">Description</string>
     <string name="title_activity_transfer">Upload trail</string>
-    <string name="text_send_trail">Uploads are queued securely over HTTPS and continue when network access is available.</string>
+    <string name="text_send_trail">Uploads are queued and continue when network access is available.</string>
     <string name="upload_saved_trail">Upload saved trail</string>
     <string name="upload_trail_summary">%1$s · %2$d GPS points</string>
     <string name="upload_trail_summary_empty">Saved trail</string>
@@ -50,13 +50,13 @@
     <string name="upload_account_section">Server and account</string>
     <string name="toggle_password_visibility">Show or hide password</string>
     <string name="required_field">Required</string>
-    <string name="invalid_https_server">Enter a valid HTTPS server URL.</string>
+    <string name="invalid_server_url">Enter a valid HTTP or HTTPS server URL.</string>
     <string name="locations_filename">locations.json</string>
     <string name="pictures_filename">pictures.json</string>
     <string name="state_filename">state.json</string>
     <string name="points">GPS points: </string>
     <string name="edit_server_url">Server URL</string>
-    <string name="default_server_url">https://jatrailmap.com/addtrail</string>
+    <string name="default_server_url">https://jatrailmap.com/api/v1/trails</string>
     <string name="form_state_filename">form_state.json</string>
     <string name="location_permission_denied">Location permission is required to record a trail.</string>
     <string name="camera_permission_denied">Camera permission is required to take a trail photo.</string>
@@ -67,7 +67,6 @@
     <string name="stop_tracking">Stop</string>
     <string name="upload_required_fields">Please enter a username, password, and trail name.</string>
     <string name="upload_fix_fields">Check the highlighted upload fields.</string>
-    <string name="upload_https_required">Enter a valid HTTPS server URL.</string>
     <string name="upload_no_locations">There is no location data to upload.</string>
     <string name="upload_queued">Upload queued. It will retry when a network is available.</string>
     <string name="upload_failed">Upload failed</string>
