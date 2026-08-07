@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ trail.trailname }} · JaTrail{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+{% endblock %}
+{% block content %}
+  <div class="trail-workspace" data-trail-id="{{ trail._id }}">
+    <aside class="trail-sidebar">
+      <div class="trail-heading">
+        <a class="back-link" href="/">← All trails</a>
+        <div class="trail-title-row">
+          <h1>{{ trail.trailname }}</h1>
+          <span class="visibility-badge visibility-{{ trail.access }}">{{ trail.access|title }}</span>
+        </div>
+        <p class="trail-location">{{ trail.location or "Unknown location" }}</p>
+        <p class="trail-date">{{ display_date }}</p>
+        {% if trail.access == "public" %}<div class="trail-owner"><strong>Shared by {{ owner_profile.display_name }}</strong>{% if owner_profile.location %}<span>{{ owner_profile.location }}</span>{% endif %}</div>{% endif %}
+      </div>
+
+      <section class="stat-grid" aria-label="Trail statistics">
+        <div class="stat-card"><strong>{{ distance }}</strong><small>Distance</small></div>
+        <div class="stat-card"><strong>{{ elapsed }}</strong><small>Elapsed</small></div>
+        <div class="stat-card"><strong>{{ photo_count }}</strong><small>Photo{% if photo_count != 1 %}s{% endif %}</small></div>
+        {% if has_elevation %}
+          <div class="stat-card"><strong>{{ elevation_gain }}</strong><small>Elevation gain</small></div>
+        {% endif %}
+      </section>
+
+      {% if trail.description %}
+        <section class="trail-description">
+          <h2>About this trail</h2>
+          <p>{{ trail.description }}</p>
+        </section>
+      {% endif %}
+
+      {% if has_elevation %}
+        <section class="elevation-panel">
+          <div class="section-heading">
+            <h2>Elevation profile</h2>
+            <span>{{ minimum_elevation }}–{{ maximum_elevation }}</span>
+          </div>
+          <svg id="elevation-chart" viewBox="0 0 360 240" role="img" aria-label="Interactive elevation profile along the trail"></svg>
+          <p class="chart-caption">Hover over the profile to locate that elevation on the map.</p>
+        </section>
+      {% endif %}
+
+      {% if is_owner %}
+        <div class="owner-actions"><a class="button-link" href="/trail/{{ trail._id }}/edit">Edit trail</a></div>
+      {% endif %}
+    </aside>
+    <section class="map-shell" aria-label="Interactive trail map">
+      <div id="map"></div>
+      <div id="map-status" class="map-status" role="status">Loading trail map…</div>
+    </section>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="/static/trail.js" defer></script>
+{% endblock %}

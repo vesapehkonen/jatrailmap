@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Trail moderation · JaTrail{% endblock %}
+{% block content %}
+  {% include "_admin_nav.html" %}
+  <section class="page-heading"><div><span class="eyebrow">Administration</span><h1>Public trail moderation</h1><p>Review public listings and make inappropriate content private.</p></div></section>
+  <form class="admin-search" action="/admin/moderation" method="get"><label>Find a public trail<input type="search" name="q" value="{{ q }}" placeholder="Trail name or location"></label><button type="submit">Search</button>{% if q %}<a class="secondary-button" href="/admin/moderation">Clear</a>{% endif %}</form>
+  <p id="admin-status" role="status"></p>
+  <section class="moderation-list">{% for trail in trails %}<article data-trail-id="{{ trail._id }}"><div><h2><a href="/trail/{{ trail._id }}">{{ trail.trailname }}</a></h2><p>{{ trail.location or 'Location not specified' }} · by {{ trail.owner }}</p></div><form class="unpublish-form"><label>Reason<input name="reason" minlength="3" maxlength="1000" required placeholder="Explain why this trail must be private"></label><button class="danger" type="submit">Make private</button></form></article>{% else %}<div class="empty-state"><h3>No public trails found</h3></div>{% endfor %}</section>
+{% endblock %}
+{% block scripts %}<script src="/static/admin.js" defer></script>{% endblock %}

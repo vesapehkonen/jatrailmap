@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ trail.trailname }} · JaTrail{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+{% endblock %}
+{% block content %}
+  <div class="editor-page" data-trail-id="{{ trail._id }}" data-trail-access="{{ trail.access }}">
+    <header class="editor-header">
+      <div><a class="back-link" href="/trail/{{ trail._id }}">← Back to trail</a><h1>Edit {{ trail.trailname }}</h1></div>
+      <dl class="editor-summary">
+        <div><dt>Date</dt><dd>{{ display_date }}</dd></div>
+        <div><dt>Distance</dt><dd>{{ distance }}</dd></div>
+        <div><dt>Elapsed</dt><dd>{{ elapsed }}</dd></div>
+      </dl>
+    </header>
+
+    <nav class="editor-tabs" aria-label="Trail editing sections">
+      <button class="editor-tab is-active" type="button" data-tab="details" aria-selected="true">Details</button>
+      <button class="editor-tab" type="button" data-tab="sharing" aria-selected="false">Sharing</button>
+      <button class="editor-tab" type="button" data-tab="map" aria-selected="false">Map &amp; photos</button>
+    </nav>
+
+    <div class="editor-workspace">
+      <aside class="editor-panel">
+        <section class="editor-section is-active" data-section="details">
+          <h2>Trail details</h2>
+          <p class="section-intro">Update the information people see beside the map.</p>
+          <form id="trail-details">
+            <label>Name <input name="trailname" value="{{ trail.trailname }}" required maxlength="200"></label>
+            <label>Location <input name="location" value="{{ trail.location or '' }}" maxlength="300"></label>
+            <label>Description <textarea name="description" maxlength="10000">{{ trail.description or '' }}</textarea></label>
+          </form>
+          <div class="danger-zone">
+            <h3>Delete trail</h3><p>Permanently remove this trail, its GPS points and photos.</p>
+            <button id="delete-trail" class="danger" type="button">Delete trail</button>
+          </div>
+        </section>
+
+        <section class="editor-section" data-section="sharing" hidden>
+          <h2>Sharing</h2>
+          <p class="section-intro">Choose who can discover and open this trail.</p>
+          <form id="trail-permissions">
+            <label>Visibility
+              <select name="access">
+                {% for access in ["private", "public", "group"] %}
+                  <option value="{{ access }}" {% if trail.access == access %}selected{% endif %}>{{ access|title }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <fieldset><legend>Allowed groups</legend>
+              {% for group in groups %}
+                <label><input type="checkbox" name="groups" value="{{ group._id }}" {% if group._id in (trail.groups or []) %}checked{% endif %}> {{ group.name }}</label>
+              {% else %}<small>No groups are available. <a href="/groups">Create a group</a>.</small>{% endfor %}
+            </fieldset>
+          </form>
+        </section>
+
+        <section class="editor-section" data-section="map" hidden>
+          <h2>Map &amp; photos</h2>
+          <p class="section-intro">Drag GPS points or photo thumbnails. Select a GPS point to remove it, or select a photo to edit its details.</p>
+          <div class="map-edit-legend"><span><i class="legend-point"></i> GPS point</span><span><i class="legend-photo"></i> Photo</span></div>
+          <button id="undo-map-action" class="secondary-button" type="button" disabled>Undo last map action</button>
+        </section>
+      </aside>
+
+      <section class="editor-map-stage">
+        <div id="map" aria-label="Trail editor map"></div>
+        <aside id="photo-side-panel" class="photo-side-panel" aria-label="Photo editor" hidden>
+          <div class="photo-panel-header"><h2>Edit photo</h2><button id="close-photo-panel" class="icon-button" type="button" aria-label="Close photo editor">×</button></div>
+          <a id="photo-original-link" target="_blank" rel="noopener"><img id="photo-panel-image" alt="Trail photo"></a>
+          <form id="photo-form">
+            <label>Title <input name="picturename" maxlength="300"></label>
+            <label>Description <textarea name="description" maxlength="10000"></textarea></label>
+            <label>Visibility
+              <select name="access"><option value="private">Private</option><option value="public">Public</option><option value="group">Group</option></select>
+            </label>
+            <fieldset><legend>Allowed groups</legend>
+              {% for group in groups %}<label><input type="checkbox" name="groups" value="{{ group._id }}"> {{ group.name }}</label>{% endfor %}
+            </fieldset>
+            <p class="section-intro">Photo changes use the common Save changes button.</p>
+            <div class="photo-panel-actions"><button id="delete-photo" class="danger" type="button">Remove photo</button></div>
+          </form>
+        </aside>
+      </section>
+    </div>
+
+    <div class="global-save-bar">
+      <span id="unsaved-indicator"><i></i><span>All changes saved</span></span>
+      <div><button id="cancel-trail-changes" class="secondary-button" type="button" disabled>Cancel</button><button id="save-trail-changes" type="button" disabled>Save changes</button></div>
+    </div>
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="/static/edit-trail.js" defer></script>
+{% endblock %}

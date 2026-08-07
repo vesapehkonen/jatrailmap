@@ -1,0 +1,1 @@
+"""JaTrail FastAPI application."""

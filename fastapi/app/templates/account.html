@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Account · JaTrail{% endblock %}
+{% block content %}
+  <section class="page-heading"><div><span class="eyebrow">Settings</span><h1>Your account</h1><p>Signed in as <strong>{{ user.username }}</strong></p></div></section>
+  {% if notifications %}<section class="notification-panel"><h2>Notifications</h2>{% for notification in notifications %}<article><strong>{{ notification.title }}</strong><p>{{ notification.message }}</p><small>{{ notification.created.strftime('%b %d, %Y') if notification.created else '' }}</small></article>{% endfor %}</section>{% endif %}
+  <div class="settings-grid">
+    <section class="settings-card settings-card-wide">
+      <div class="settings-card-heading"><span class="settings-icon"><svg aria-hidden="true"><use href="/static/icons.svg#account"></use></svg></span><div><h2>Public profile</h2><p>Optional information shown with public trails only when enabled below.</p></div></div>
+      <form id="profile-form" class="form-grid">
+        <label class="full-row">Display name <input name="display_name" value="{{ user.display_name or '' }}" maxlength="100" placeholder="Optional public name"></label>
+        <label class="check-row full-row"><input name="show_name_on_public_trails" type="checkbox" {% if user.show_name_on_public_trails %}checked{% endif %}> Show my display name with public trails</label>
+        <label class="full-row">Profile location <input name="profile_location" value="{{ user.profile_location or '' }}" maxlength="200" placeholder="For example: Portland, Oregon"></label>
+        <label class="check-row full-row"><input name="show_location_on_public_trails" type="checkbox" {% if user.show_location_on_public_trails %}checked{% endif %}> Show my profile location with public trails</label>
+        <label class="full-row">Email <input name="email" type="email" value="{{ user.email or '' }}" maxlength="320"><small>Optional and private. Email recovery will require verification in a later phase.</small></label>
+        <label class="full-row">Current password <input name="current_password" type="password" autocomplete="current-password" required></label>
+        <div class="form-actions full-row"><button type="submit">Save profile</button></div>
+      </form>
+    </section>
+    <section class="settings-card">
+      <div class="settings-card-heading"><span class="settings-icon">•••</span><div><h2>Password</h2><p>Changing it signs out every active session.</p></div></div>
+      <form id="password-form">
+        <label>Current password <input name="current_password" type="password" autocomplete="current-password" required></label>
+        <label>New password <input name="new_password" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit">Change password</button>
+      </form>
+    </section>
+    <section class="settings-card danger-settings">
+      <div class="settings-card-heading"><span class="settings-icon">!</span><div><h2>Delete account</h2><p>Permanently removes your trails, photos and groups.</p></div></div>
+      <form id="delete-account-form">
+        <label>Current password <input name="current_password" type="password" autocomplete="current-password" required></label>
+        <button class="danger" type="submit">Delete account and all trails</button>
+      </form>
+    </section>
+  </div>
+  <p id="account-status" role="status"></p>
+  <script src="/static/account.js" defer></script>
+{% endblock %}

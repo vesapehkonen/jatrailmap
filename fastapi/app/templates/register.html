@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Create account · JaTrail{% endblock %}
+{% block content %}
+  <div class="auth-layout">
+    <section class="auth-message"><span class="eyebrow">Start exploring</span><h1>Keep every adventure in one place.</h1><p>Create an account to privately store trails, correct GPS points and share selected journeys.</p><ul><li>Interactive GPS trail maps</li><li>Photos tied to exact locations</li><li>Private and group sharing</li></ul></section>
+    <section class="auth-card">
+      <h2>Create your account</h2><p>Already registered? <a href="/#sign-in">Sign in</a>.</p>
+      {% if registration.enabled %}<form id="register-form">
+        <input type="hidden" name="csrf_token">
+        <label>Username <input name="username" autocomplete="username" required maxlength="200"></label>
+        <label>Password <input name="password" type="password" autocomplete="new-password" required minlength="8"><small>Use at least eight characters.</small></label>
+        <button type="submit">Create account</button><span class="form-error" role="alert"></span>
+      </form>{% else %}<div class="empty-state"><h3>Registration is closed</h3><p>An administrator has temporarily disabled new accounts.</p></div>{% endif %}
+    </section>
+  </div>
+  <script src="/static/register.js" defer></script>
+{% endblock %}

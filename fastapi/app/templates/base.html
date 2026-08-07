@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}JaTrail{% endblock %}</title>
+    <link rel="icon" href="/static/trail-icon.svg" type="image/svg+xml" sizes="any">
+    <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/static/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="shortcut icon" href="/static/favicon.ico">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" sizes="180x180">
+    <link rel="stylesheet" href="/static/style.css">
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="JaTrail home">
+        <span class="brand-mark"><svg aria-hidden="true"><use href="/static/icons.svg#trail"></use></svg></span>
+        <span>JaTrail</span>
+      </a>
+      {% if authenticated %}
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-navigation" aria-label="Open navigation">
+          <svg class="menu-icon" aria-hidden="true"><use href="/static/icons.svg#menu"></use></svg>
+          <svg class="close-icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
+        </button>
+        <nav id="site-navigation" class="site-navigation">
+          <a href="/trails"><svg aria-hidden="true"><use href="/static/icons.svg#map"></use></svg>Explore</a>
+          {% if request.state.is_admin %}<a href="/admin"><svg aria-hidden="true"><use href="/static/icons.svg#account"></use></svg>Admin</a>{% endif %}
+          <a href="/account"><svg aria-hidden="true"><use href="/static/icons.svg#account"></use></svg>Account</a>
+          <a href="/groups"><svg aria-hidden="true"><use href="/static/icons.svg#groups"></use></svg>Groups</a>
+          <form action="/logout" method="post" class="inline csrf-form">
+            <input type="hidden" name="csrf_token">
+            <button class="nav-action" type="submit"><svg aria-hidden="true"><use href="/static/icons.svg#logout"></use></svg>Log out</button>
+          </form>
+        </nav>
+      {% endif %}
+    </header>
+    <main class="page-shell">{% block content %}{% endblock %}</main>
+    <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title">
+      <form method="dialog">
+        <div class="confirm-icon" aria-hidden="true">!</div>
+        <h2 id="confirm-title">Confirm action</h2>
+        <p id="confirm-message"></p>
+        <div class="confirm-actions"><button value="cancel" class="secondary-button">Cancel</button><button value="confirm" class="danger">Confirm</button></div>
+      </form>
+    </dialog>
+    <script src="/static/app.js" defer></script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

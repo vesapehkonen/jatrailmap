@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Administration · JaTrail{% endblock %}
+{% block content %}
+  {% include "_admin_nav.html" %}
+  <section class="page-heading"><div><span class="eyebrow">Administration</span><h1>JaTrail overview</h1><p>Manage accounts and quotas without exposing passwords or private content.</p></div><a class="secondary-button" href="/trails?scope=public">Review public trails</a></section>
+  <section class="admin-totals" aria-label="Application totals">
+    <div class="stat-card"><strong>{{ totals.users }}</strong><small>Accounts</small></div>
+    <div class="stat-card"><strong>{{ totals.trails }}</strong><small>Trails</small></div>
+    <div class="stat-card"><strong>{{ totals.photos }}</strong><small>Photos</small></div>
+    <div class="stat-card"><strong>{{ totals.storage_mb }} MB</strong><small>Listed storage</small></div>
+  </section>
+  <section class="quota-summary"><strong>Default limits</strong><span>{{ defaults.account }} MB/account</span><span>{{ defaults.image }} MB/photo</span><span>{{ defaults.photos }} photos/trail</span><span>{{ defaults.upload }} MB/upload</span></section>
+  <form class="admin-search" action="/admin" method="get" role="search"><label>Find an account<input type="search" name="q" value="{{ q }}" placeholder="Username, name or email"></label><button type="submit">Search</button>{% if q %}<a class="secondary-button" href="/admin">Clear</a>{% endif %}</form>
+  <p id="admin-status" class="form-status" role="status"></p>
+  <section class="admin-user-list">
+    {% for user in users %}
+      <article class="admin-user-card" data-user-id="{{ user._id }}">
+        <header><div><h2><a href="/admin/users/{{ user._id }}">{{ user.username }}</a></h2><p>{{ user.display_name or user.email or "No profile details" }}</p></div><div>{% if user.role == "admin" %}<span class="visibility-badge visibility-group">Admin</span>{% endif %}{% if user.approved == false %}<span class="visibility-badge visibility-private">Pending</span>{% endif %}{% if user.suspended %}<span class="visibility-badge visibility-private">Suspended</span>{% endif %}</div></header>
+        <div class="admin-account-stats"><span><strong>{{ user.trail_count }}</strong> trails</span><span><strong>{{ user.storage_mb }} MB</strong> stored</span></div>
+        <details><summary>Quota overrides</summary>
+          <form class="admin-quota-form">
+            <label>Account storage (MB)<input type="number" name="account_storage_mb" min="1" placeholder="{{ defaults.account }}" value="{{ user.quotas.account_storage_bytes // 1048576 if user.quotas and user.quotas.account_storage_bytes else '' }}"></label>
+            <label>Photo size (MB)<input type="number" name="image_mb" min="1" placeholder="{{ defaults.image }}" value="{{ user.quotas.image_bytes // 1048576 if user.quotas and user.quotas.image_bytes else '' }}"></label>
+            <label>Photos per trail<input type="number" name="photos_per_trail" min="1" placeholder="{{ defaults.photos }}" value="{{ user.quotas.photos_per_trail if user.quotas and user.quotas.photos_per_trail else '' }}"></label>
+            <label>Trail upload (MB)<input type="number" name="upload_mb" min="1" placeholder="{{ defaults.upload }}" value="{{ user.quotas.upload_bytes // 1048576 if user.quotas and user.quotas.upload_bytes else '' }}"></label>
+            <button type="submit">Save quotas</button><button class="secondary-button reset-quotas" type="button">Use defaults</button>
+          </form>
+        </details>
+        <footer>{% if user.approved == false %}<button class="approve-user">Approve</button>{% endif %}<button class="secondary-button toggle-role" data-role="{{ user.role or 'user' }}">{{ 'Demote admin' if user.role == 'admin' else 'Make admin' }}</button>{% if user._id != admin_id %}<button class="secondary-button toggle-suspension" data-suspended="{{ 'true' if user.suspended else 'false' }}">{{ "Reactivate" if user.suspended else "Suspend" }}</button><button class="danger delete-user">Delete account</button>{% endif %}</footer>
+      </article>
+    {% else %}<div class="empty-state"><h3>No accounts found</h3><p>Try another search.</p></div>{% endfor %}
+  </section>
+{% endblock %}
+{% block scripts %}<script src="/static/admin.js" defer></script>{% endblock %}

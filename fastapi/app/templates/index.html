@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+  {% if authenticated %}
+    <section class="page-heading"><div><span class="eyebrow">Trail library</span><h1>Your trails</h1><p>Open a trail to explore its route, photos and elevation.</p></div><a class="button-link" href="/trails?scope=public">Explore public trails</a></section>
+  {% else %}
+    <section class="landing-hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Your journeys, mapped</span>
+        <h1>Every trail tells<br>a story.</h1>
+        <p>Record, correct and share GPS trails with photos tied to the places they were taken.</p>
+        <div class="hero-actions"><button id="open-sign-in" type="button">Sign In</button><a class="secondary-button" href="/register">Create Account</a></div>
+        {% if trails %}<a class="hero-browse-link" href="/trails">Browse public trails</a>{% endif %}
+      </div>
+      <div class="hero-preview" aria-hidden="true">
+        <svg viewBox="0 0 520 360"><path class="preview-contour" d="M-20 80c100-70 170 55 260-5s160-45 300 20M-20 175c110-65 185 45 280-5s160-40 290 30M-20 285c120-75 200 35 310-10s160-15 260 35"/><path class="preview-route" d="M55 285c45-30 55-85 105-90s43-75 95-78 74 52 122 19 30-74 83-91"/><circle class="preview-start" cx="55" cy="285" r="8"/><circle class="preview-finish" cx="460" cy="45" r="8"/></svg>
+        <div class="preview-photo preview-photo-one"><svg aria-hidden="true"><use href="/static/icons.svg#photo"></use></svg></div><div class="preview-photo preview-photo-two"><svg aria-hidden="true"><use href="/static/icons.svg#photo"></use></svg></div>
+        <div class="preview-card"><strong>Forest Ridge</strong><span>5.2 mi · 2 h 51 min</span></div>
+      </div>
+    </section>
+    <section class="feature-list" aria-label="JaTrail features">
+      <article><svg aria-hidden="true"><use href="/static/icons.svg#map"></use></svg><div><strong>Interactive maps</strong><p>Explore every route from start to finish.</p></div></article>
+      <article><svg aria-hidden="true"><use href="/static/icons.svg#photo"></use></svg><div><strong>Geotagged photos</strong><p>See each memory where it happened.</p></div></article>
+      <article><svg aria-hidden="true"><use href="/static/icons.svg#edit"></use></svg><div><strong>Correct GPS errors</strong><p>Fine-tune points with a visual editor.</p></div></article>
+      <article><svg aria-hidden="true"><use href="/static/icons.svg#privacy"></use></svg><div><strong>Share your way</strong><p>Keep trails private, grouped or public.</p></div></article>
+    </section>
+    <section class="page-heading"><div><span class="eyebrow">Discover</span><h2>Latest public trails</h2><p>Recent adventures shared by the community.</p></div></section>
+    <dialog id="sign-in" class="sign-in-dialog" aria-labelledby="sign-in-title">
+      <button id="close-sign-in" class="dialog-close" type="button" aria-label="Close sign-in dialog"><svg aria-hidden="true"><use href="/static/icons.svg#close"></use></svg></button>
+      <div class="sign-in-dialog-heading"><span class="eyebrow">Welcome back</span><h2 id="sign-in-title">Sign in to JaTrail</h2><p>Manage your routes, photos and sharing.</p></div>
+      <form id="login-form" action="/login" method="post" class="dialog-login">
+        <input type="hidden" name="csrf_token">
+        <label>Username <input name="username" autocomplete="username" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Sign In</button><span class="form-error" role="alert" aria-live="polite"></span>
+      </form>
+      <p class="sign-in-register">New to JaTrail? <a href="/register">Create an account</a></p>
+    </dialog>
+  {% endif %}
+  {% if authenticated %}
+    <section class="trail-library">
+      {% with trails=own_trails %}{% include "_trail_cards.html" %}{% endwith %}
+    </section>
+    <section class="page-heading section-divider"><div><span class="eyebrow">Shared access</span><h2>Shared with you</h2><p>Private group trails that other people have shared with you.</p></div><a class="secondary-button" href="/trails?scope=shared">View all shared trails</a></section>
+    <section class="trail-library">
+      {% with trails=shared_trails %}{% include "_trail_cards.html" %}{% endwith %}
+    </section>
+  {% else %}
+    <section class="trail-library">{% include "_trail_cards.html" %}</section>
+    {% if trails %}<div class="browse-more"><a class="secondary-button" href="/trails">Browse all public trails</a></div>{% endif %}
+  {% endif %}
+{% endblock %}

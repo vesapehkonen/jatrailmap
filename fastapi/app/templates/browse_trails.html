@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Explore trails · JaTrail{% endblock %}
+{% block content %}
+  <section class="page-heading browse-heading">
+    <div><span class="eyebrow">Discover</span><h1>Explore trails</h1><p>Search public trails{% if authenticated %} and trails available to you{% endif %}.</p></div>
+  </section>
+  <form class="trail-search" action="/trails" method="get" role="search">
+    <label><span>Trail name or location</span><input type="search" name="q" value="{{ q }}" placeholder="Search trails…"></label>
+    {% if authenticated %}
+      <label><span>Show</span><select name="scope">
+        <option value="public" {% if scope == "public" %}selected{% endif %}>Public trails</option>
+        <option value="mine" {% if scope == "mine" %}selected{% endif %}>My trails</option>
+        <option value="shared" {% if scope == "shared" %}selected{% endif %}>Shared with me</option>
+        <option value="all" {% if scope == "all" %}selected{% endif %}>All available trails</option>
+      </select></label>
+    {% else %}<input type="hidden" name="scope" value="public">{% endif %}
+    <button type="submit">Search</button>
+    {% if q %}<a class="secondary-button" href="/trails?scope={{ scope }}">Clear</a>{% endif %}
+  </form>
+  <div class="results-summary"><strong>{{ total }}</strong> trail{% if total != 1 %}s{% endif %} found</div>
+  <section class="trail-library">{% include "_trail_cards.html" %}</section>
+  {% if total_pages > 1 %}
+    <nav class="pagination" aria-label="Trail result pages">
+      {% if page > 1 %}<a class="secondary-button" href="/trails?q={{ q|urlencode }}&scope={{ scope }}&page={{ page - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
+      <span>Page {{ page }} of {{ total_pages }}</span>
+      {% if page < total_pages %}<a class="secondary-button" href="/trails?q={{ q|urlencode }}&scope={{ scope }}&page={{ page + 1 }}">Next →</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

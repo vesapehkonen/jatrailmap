@@ -1,0 +1,18 @@
+<div class="trail-list visual-trail-list">
+  {% for trail in trails %}
+    <a class="trail-card visual-trail-card" href="/trail/{{ trail._id }}">
+      <div class="trail-card-media {% if not trail.cover_imageid %}has-placeholder{% endif %}">
+        {% if trail.cover_imageid %}<img src="/image/{{ trail.cover_imageid }}" alt="">{% else %}<svg aria-hidden="true"><use href="/static/icons.svg#trail"></use></svg>{% endif %}
+        <span class="visibility-badge visibility-{{ trail.access }}">{{ trail.access|title }}</span>
+      </div>
+      <div class="trail-card-body">
+        <strong>{{ trail.trailname }}</strong>
+        <span class="trail-card-location">{{ trail.location or "Location not specified" }}</span>
+        {% if trail.access == "public" %}<span class="trail-card-owner">by {{ trail.owner_profile.display_name }}{% if trail.owner_profile.location %} · {{ trail.owner_profile.location }}{% endif %}</span>{% endif %}
+        <div class="trail-card-meta"><small>{{ trail.display_date }}</small><small>{{ trail.display_distance }}</small></div>
+      </div>
+    </a>
+  {% else %}
+    <div class="empty-state"><svg aria-hidden="true"><use href="/static/icons.svg#trail"></use></svg><h3>No trails found</h3><p>Try another search or filter.</p></div>
+  {% endfor %}
+</div>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Groups · JaTrail{% endblock %}
+{% block content %}
+  <section class="page-heading"><div><span class="eyebrow">Sharing</span><h1>Your groups</h1><p>Organize people who can access selected trails and photos.</p></div></section>
+  <form method="get" class="user-search search-panel">
+    <label>Find users <input type="search" name="q" value="{{ query }}" minlength="2" placeholder="Username or public display name"></label>
+    <button type="submit">Search</button>
+  </form>
+  <p class="search-help"><small>Existing members are always shown. Search results are limited to 50 users.</small></p>
+  <section class="group-grid">
+      <form class="group-card group-form new-group-card" data-method="POST" data-url="/api/v1/groups">
+      <h2>New group</h2>
+      <label>Name <input name="name" required maxlength="200"></label>
+      <fieldset><legend>Members</legend>
+        {% for user in users %}<label><input type="checkbox" name="members" value="{{ user._id }}"> {{ user.member_label }}</label>{% endfor %}
+      </fieldset>
+      <button type="submit">Create group</button>
+    </form>
+    {% for group in groups %}
+      <form class="group-card group-form" data-method="PATCH" data-url="/api/v1/groups/{{ group._id }}">
+        <h2>{{ group.name }}</h2>
+        <label>Name <input name="name" value="{{ group.name }}" required maxlength="200"></label>
+        <fieldset><legend>Members</legend>
+          {% for user in users %}<label><input type="checkbox" name="members" value="{{ user._id }}" {% if user._id|string in group.member_strings %}checked{% endif %}> {{ user.member_label }}</label>{% endfor %}
+        </fieldset>
+        <small>Used by {{ group.trail_count }} trail(s) and {{ group.picture_count }} photo(s).</small>
+        <div><button type="submit">Save group</button> <button type="button" class="danger delete-group" data-url="/api/v1/groups/{{ group._id }}">Delete</button></div>
+      </form>
+    {% endfor %}
+  </section>
+  <p id="group-status" role="status"></p>
+  <script src="/static/groups.js" defer></script>
+{% endblock %}

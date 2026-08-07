@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ user.username }} · Administration · JaTrail{% endblock %}
+{% block content %}
+  {% include "_admin_nav.html" %}
+  <a class="back-link" href="/admin">← Accounts</a>
+  <section class="page-heading"><div><span class="eyebrow">Account details</span><h1>{{ user.username }}</h1><p>{{ user.display_name or "No display name" }} · {{ user.email or "No email" }}</p></div>{% if user.suspended %}<span class="visibility-badge visibility-private">Suspended</span>{% endif %}</section>
+  <div class="admin-detail-actions" data-user-id="{{ user._id }}"><button class="secondary-button issue-password-reset">Create password reset link</button><output id="reset-link-output"></output></div>
+  <section class="admin-totals"><div class="stat-card"><strong>{{ trail_count }}</strong><small>Trails</small></div><div class="stat-card"><strong>{{ photo_count }}</strong><small>Photos</small></div><div class="stat-card"><strong>{{ storage_mb }} MB</strong><small>Storage</small></div><div class="stat-card"><strong>{{ storage_limit_mb }} MB</strong><small>Storage limit</small></div></section>
+  <section class="report-columns"><div class="report-section"><h2>Profile</h2><dl><dt>Display name</dt><dd>{{ user.display_name or '—' }}</dd><dt>Profile location</dt><dd>{{ user.profile_location or '—' }}</dd><dt>Name public</dt><dd>{{ 'Yes' if user.show_name_on_public_trails else 'No' }}</dd><dt>Location public</dt><dd>{{ 'Yes' if user.show_location_on_public_trails else 'No' }}</dd><dt>Role</dt><dd>{{ user.role or 'user' }}</dd></dl></div><div class="report-section"><h2>Recent admin actions</h2><ul class="plain-list">{% for entry in actions %}<li><strong>{{ entry.action }}</strong><small>{{ entry.created.strftime('%b %d, %Y') if entry.created else '' }}</small></li>{% else %}<li>No administrative actions.</li>{% endfor %}</ul></div></section>
+  <section class="report-section"><h2>Public trails</h2><ul class="plain-list">{% for trail in public_trails %}<li><a href="/trail/{{ trail._id }}">{{ trail.trailname }}</a><small>{{ trail.location or 'Location not specified' }}</small></li>{% else %}<li>This account has no public trails.</li>{% endfor %}</ul></section>
+  <p class="privacy-note">Private trail and photo content is intentionally not available to administrators.</p>
+{% endblock %}
+{% block scripts %}<script src="/static/admin.js" defer></script>{% endblock %}
