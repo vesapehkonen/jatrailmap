@@ -163,10 +163,22 @@ def prepare_trail_cards(
             f"{trail_statistics(card_locations)['distance_miles']:.1f} mi"
         )
         trail["cover_imageid"] = None
-        for picture in db.pictures.find({"trailid": trail["_id"]}).sort("timestamp", 1):
-            if policy.can_view_picture(trail, picture, user_id) and picture.get("imageid"):
+        main_picture_id = trail.get("main_pictureid")
+        if main_picture_id:
+            picture = db.pictures.find_one(
+                {"_id": main_picture_id, "trailid": trail["_id"]}
+            )
+            if (
+                picture
+                and policy.can_view_picture(trail, picture, user_id)
+                and picture.get("imageid")
+            ):
                 trail["cover_imageid"] = picture["imageid"]
-                break
+        else:
+            for picture in db.pictures.find({"trailid": trail["_id"]}).sort("timestamp", 1):
+                if policy.can_view_picture(trail, picture, user_id) and picture.get("imageid"):
+                    trail["cover_imageid"] = picture["imageid"]
+                    break
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -262,6 +274,17 @@ def trail_page(
         for picture in db.pictures.find({"trailid": trail["_id"]})
         if policy.can_view_picture(trail, picture, user_id)
     )
+    main_photo = None
+    if trail.get("main_pictureid"):
+        candidate = db.pictures.find_one(
+            {"_id": trail["main_pictureid"], "trailid": trail["_id"]}
+        )
+        if (
+            candidate
+            and candidate.get("imageid")
+            and policy.can_view_picture(trail, candidate, user_id)
+        ):
+            main_photo = candidate
     return templates.TemplateResponse(
         request,
         "trail.html",
@@ -286,6 +309,7 @@ def trail_page(
                 else "Unavailable"
             ),
             "photo_count": photo_count,
+            "main_photo": main_photo,
         },
     )
 
@@ -379,9 +403,17 @@ def update_trail(
 ) -> dict[str, str]:
     oid = object_id(trail_id)
     owned_trail_or_404(db, oid, user_id)
-    result = db.trails.update_one(
-        {"_id": oid, "userid": user_id}, {"$set": update.model_dump()}
-    )
+    set_fields = update.model_dump(exclude={"main_picture_id"})
+    database_update: dict[str, Any] = {"$set": set_fields}
+    if update.main_picture_id is not None:
+        if update.main_picture_id:
+            picture_id = object_id(update.main_picture_id)
+            if db.pictures.count_documents({"_id": picture_id, "trailid": oid}) != 1:
+                raise HTTPException(status_code=422, detail="Main photo must belong to this trail")
+            set_fields["main_pictureid"] = picture_id
+        else:
+            database_update["$unset"] = {"main_pictureid": ""}
+    result = db.trails.update_one({"_id": oid, "userid": user_id}, database_update)
     if result.matched_count != 1:
         raise HTTPException(status_code=404, detail="Trail not found")
     return {"status": "ok"}
@@ -478,6 +510,10 @@ def delete_picture(
     if picture.get("imageid") is not None:
         db.images.delete_one({"_id": picture["imageid"]})
     db.pictures.delete_one({"_id": picture_oid, "trailid": trail_oid})
+    db.trails.update_one(
+        {"_id": trail_oid, "main_pictureid": picture_oid},
+        {"$unset": {"main_pictureid": ""}},
+    )
     return Response(status_code=204)
 
 

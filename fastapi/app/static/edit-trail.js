@@ -12,12 +12,15 @@ if (editor && window.L) {
   const unsavedIndicator = document.querySelector("#unsaved-indicator");
   const undoButton = document.querySelector("#undo-map-action");
   const toastRegion = document.querySelector("#toast-region");
+  const mainPhotoControl = photoForm.elements.main_photo;
   let locationStates = [];
   let photoStates = [];
   let selectedPhoto = null;
   let actionHistory = [];
   let redrawPath = () => {};
   let dirty = false;
+  let originalMainPictureId = editor.dataset.mainPictureId || "";
+  let draftMainPictureId = originalMainPictureId;
 
   const locationIcon = L.divIcon({
     className: "location-point-icon",
@@ -87,6 +90,7 @@ if (editor && window.L) {
   function calculateDirty() {
     return formSnapshot(detailsForm) !== originalDetails
       || formSnapshot(permissionForm) !== originalPermissions
+      || draftMainPictureId !== originalMainPictureId
       || locationStates.some((state) => state.deleted || positionChanged(state))
       || photoStates.some((state) => state.deleted || positionChanged(state) || photoMetadataChanged(state));
   }
@@ -101,6 +105,7 @@ if (editor && window.L) {
       element?.classList.toggle("is-modified", positionChanged(state) || photoMetadataChanged(state));
       element?.classList.toggle("is-pending-removal", state.deleted);
       element?.classList.toggle("is-selected", state === selectedPhoto);
+      element?.classList.toggle("is-main-photo", state.picture.id === draftMainPictureId);
     });
   }
   function updateDirtyState() {
@@ -162,6 +167,7 @@ if (editor && window.L) {
     photoForm.querySelectorAll('input[name="groups"]').forEach((input) => {
       input.checked = state.draft.groups.includes(input.value);
     });
+    mainPhotoControl.checked = state.picture.id === draftMainPictureId;
     updateDirtyState();
   }
   function closePhotoPanel(persist = true) {
@@ -173,6 +179,11 @@ if (editor && window.L) {
   photoForm.addEventListener("submit", (event) => event.preventDefault());
   photoForm.addEventListener("input", () => { readPhotoDraft(); updateDirtyState(); });
   photoForm.addEventListener("change", () => { readPhotoDraft(); updateDirtyState(); });
+  mainPhotoControl.addEventListener("change", () => {
+    if (!selectedPhoto) return;
+    draftMainPictureId = mainPhotoControl.checked ? selectedPhoto.picture.id : "";
+    updateDirtyState();
+  });
   document.querySelector("#close-photo-panel").addEventListener("click", closePhotoPanel);
 
   const map = L.map("map").setView([0, 0], 2);
@@ -194,6 +205,9 @@ if (editor && window.L) {
       action.state.deleted = false;
       action.state.marker.dragging?.enable();
       action.state.marker.setOpacity(1);
+      if (action.mainPictureBefore !== undefined) {
+        draftMainPictureId = action.mainPictureBefore;
+      }
     }
     redrawPath();
     updateDirtyState();
@@ -290,11 +304,13 @@ if (editor && window.L) {
       "Remove photo",
     )) return;
     const state = selectedPhoto;
+    const mainPictureBefore = draftMainPictureId;
+    if (state.picture.id === draftMainPictureId) draftMainPictureId = "";
     state.deleted = true;
     state.marker.dragging?.disable();
     state.marker.setOpacity(.28);
     closePhotoPanel();
-    pushAction({ type: "remove", state });
+    pushAction({ type: "remove", state, mainPictureBefore });
     toast("Photo marked for removal.");
   });
 
@@ -314,6 +330,7 @@ if (editor && window.L) {
         trailname: details.get("trailname"),
         location: details.get("location"),
         description: details.get("description"),
+        main_picture_id: draftMainPictureId,
       });
       await api(`/api/v1/trails/${trailId}/permissions`, "PUT", {
         access: permissions.get("access"),
@@ -353,6 +370,8 @@ if (editor && window.L) {
       photoStates.filter((state) => state.deleted).forEach((state) => state.marker.remove());
       locationStates = locationStates.filter((state) => !state.deleted);
       photoStates = photoStates.filter((state) => !state.deleted);
+      originalMainPictureId = draftMainPictureId;
+      editor.dataset.mainPictureId = originalMainPictureId;
       originalDetails = formSnapshot(detailsForm);
       originalPermissions = formSnapshot(permissionForm);
       actionHistory = [];
@@ -369,6 +388,7 @@ if (editor && window.L) {
   cancelChanges.addEventListener("click", () => {
     restoreForm(detailsForm, originalDetails);
     restoreForm(permissionForm, originalPermissions);
+    draftMainPictureId = originalMainPictureId;
     locationStates.forEach((state) => {
       state.deleted = false;
       state.marker.setLatLng(state.originalPosition);

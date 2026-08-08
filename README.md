@@ -1,101 +1,59 @@
-# Just Another Trail Map
+# JaTrail
 
-Just Another Trail Map is a web and Android application for recording GPS trails and visualizing them with geotagged photos on an interactive map.
+JaTrail is a web and Android application for recording, correcting, and sharing
+GPS trails with geotagged photos.
 
-![Screenshot](jatrailmap.png)
+![JaTrail screenshot](jatrailmap.png)
 
----
+## Active applications
 
-## Overview
+- `fastapi/` — FastAPI web application and JSON API
+- `android/` — Android GPS recording and upload application
 
-Just Another Trail Map allows users to:
+The current server uses FastAPI, Pydantic, PyMongo, MongoDB, Jinja2 templates,
+and plain JavaScript. The Android application uploads trail metadata and photos
+through the multipart `POST /api/v1/trails` endpoint.
 
-- Record GPS trails using an Android mobile device  
-- Capture photos with location metadata  
-- Upload trails and photos to a web server  
-- View routes and photo points on an interactive map  
+## Web application setup
 
-The system consists of a Node.js web application and an Android client.
-
----
-
-## Architecture
-
-### Web Application
-
-The backend provides a JSON REST API and handles trail storage and retrieval.
-
-**Technologies**
-
-- Node.js  
-- Express  
-- MongoDB  
-- Jade (Pug) templates  
-- JavaScript / jQuery  
-- Google Maps API  
-
-**Project Structure**
-
-```
-nodejs/
- ├── routes/   # Controllers and route logic
- ├── views/    # Jade templates
- └── public/   # Client-side scripts and styles
-```
-
----
-
-### Android Application
-
-The Android client records GPS data and photo locations, then uploads them to the server.
-
-**Technologies**
-
-- Java  
-- Android Studio  
-
-**Features**
-
-- GPS trail recording  
-- Photo geolocation  
-- Server synchronization  
-
----
-
-## Getting Started
-
-Clone the repository:
+Clone the repository and enter the FastAPI project:
 
 ```bash
-git clone https://github.com/vesapehkonen/jatrailmap
+git clone https://github.com/vesapehkonen/jatrail.git
+cd jatrail/fastapi
 ```
 
----
-
-## Running the Web Application
-
-Navigate to the Node.js project:
+Create a virtual environment and install the application:
 
 ```bash
-cd jatrailmap/nodejs
-npm install
-npm start
+python3 -m venv .venv
+.venv/bin/pip install -e '.[test]'
+cp .env.example .env
 ```
 
----
+Review `.env`, ensure MongoDB is available, and start the development server:
 
-## Project Status
+```bash
+.venv/bin/uvicorn app.main:app --reload
+```
 
-This project was created as a learning / experimental project and is not actively maintained.
+Run the server tests with:
 
----
+```bash
+.venv/bin/pytest -q
+```
+
+## Android application
+
+Open `android/` in Android Studio or use its Gradle wrapper. Configure the
+server URL in the application before uploading trails to another environment.
+
+## Legacy servers
+
+The retired Node.js and Spring implementations are preserved under `legacy/`
+for historical migration reference only. They must not be run against the
+current JaTrail database. See [`legacy/README.md`](legacy/README.md) for details.
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE.txt` for details.
-
----
-
-## Contributing
-
-Contributions, ideas, and improvements are welcome via issues and pull requests.
+JaTrail is licensed under the MIT License. See `LICENSE.txt`.

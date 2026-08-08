@@ -85,6 +85,7 @@ class TrailUpdate(BaseModel):
     trailname: str = Field(min_length=1, max_length=200)
     location: str = Field(default="", max_length=300)
     description: str = Field(default="", max_length=10_000)
+    main_picture_id: str | None = None
 
 
 class CoordinateUpdate(BaseModel):

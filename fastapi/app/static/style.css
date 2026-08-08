@@ -151,6 +151,8 @@ legend { padding: 0 .3rem; color: var(--stone-700); font-size: .85rem; font-weig
 .trail-date { font-size: .88rem; }
 .trail-owner { display: grid; gap: .05rem; margin-top: .65rem; padding-top: .65rem; color: var(--stone-700); border-top: 1px solid var(--stone-100); font-size: .85rem; }
 .trail-owner strong { color: var(--stone-950); }
+.trail-main-photo { display: block; margin: 1rem 0; overflow: hidden; background: var(--forest-50); border: 1px solid var(--stone-200); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.trail-main-photo img { display: block; width: 100%; max-height: 15rem; aspect-ratio: 16 / 10; object-fit: cover; }
 .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .65rem; margin: 1rem 0; }
 .stat-card { display: grid; gap: .08rem; padding: .75rem; background: var(--forest-50); border: 1px solid #23815e20; border-radius: var(--radius-sm); }
 .stat-card strong { overflow-wrap: anywhere; font-size: .95rem; line-height: 1.25; }
@@ -179,6 +181,7 @@ dd { margin: 0; color: var(--stone-700); }
 .photo-thumbnail-marker { overflow: hidden; background: var(--surface); border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 9px #0008; transition: transform var(--transition), box-shadow var(--transition); }
 .photo-thumbnail-marker:hover { z-index: 500 !important; border-color: var(--forest-600); box-shadow: 0 4px 16px #0009; }
 .photo-thumbnail-marker.is-selected { z-index: 550 !important; border-color: var(--amber); box-shadow: 0 0 0 4px #e7a3214d, 0 5px 18px #0008; transform: scale(1.16); }
+.photo-thumbnail-marker.is-main-photo { border-color: var(--amber); box-shadow: 0 0 0 3px #e7a32166, 0 3px 12px #0008; }
 .photo-thumbnail-marker.is-spiderfied { border-color: var(--forest-600); box-shadow: 0 3px 12px #0008; }
 .photo-thumbnail-marker img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .photo-spider-leg { stroke-linecap: round; }
@@ -395,6 +398,7 @@ dd { margin: 0; color: var(--stone-700); }
 .notification-panel article + article { margin-top: .7rem; padding-top: .7rem; border-top: 1px solid #e7a32133; }
 .notification-panel p { margin: .2rem 0; color: var(--stone-700); }
 .check-row { display: flex !important; align-items: center; gap: .5rem; }
+.main-photo-choice { margin-top: .25rem; padding: .7rem; color: var(--forest-900); background: var(--forest-50); border: 1px solid var(--forest-100); border-radius: var(--radius-sm); }
 .admin-detail-actions { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
 .admin-detail-actions output { flex: 1; }
 .admin-detail-actions output input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; }

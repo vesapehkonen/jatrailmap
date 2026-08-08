@@ -6,6 +6,7 @@ from app.models import CoordinateUpdate, PictureUpdate, TrailUpdate, VisibilityU
 from app.routes.trails import (
     delete_picture,
     delete_trail,
+    prepare_trail_cards,
     update_location,
     update_picture,
     update_picture_permissions,
@@ -28,6 +29,79 @@ def test_owner_can_update_metadata_and_non_owner_cannot(database):
     with pytest.raises(HTTPException) as error:
         update_trail(str(trail_id), TrailUpdate(trailname="Bad", location="", description=""), database, ObjectId())
     assert error.value.status_code == 404
+
+
+def test_owner_can_select_and_clear_main_photo(database):
+    owner = ObjectId()
+    trail_id = make_trail(database, owner)
+    picture_id = database.pictures.insert_one(
+        {"trailid": trail_id, "imageid": ObjectId(), "access": "private"}
+    ).inserted_id
+
+    update_trail(
+        str(trail_id),
+        TrailUpdate(
+            trailname="Trail",
+            location="",
+            description="",
+            main_picture_id=str(picture_id),
+        ),
+        database,
+        owner,
+    )
+    assert database.trails.find_one({"_id": trail_id})["main_pictureid"] == picture_id
+
+    update_trail(
+        str(trail_id),
+        TrailUpdate(trailname="Trail", location="", description="", main_picture_id=""),
+        database,
+        owner,
+    )
+    assert "main_pictureid" not in database.trails.find_one({"_id": trail_id})
+
+
+def test_main_photo_must_belong_to_trail(database):
+    owner = ObjectId()
+    trail_id = make_trail(database, owner)
+    other_trail_id = make_trail(database, owner, "Other")
+    picture_id = database.pictures.insert_one(
+        {"trailid": other_trail_id, "imageid": ObjectId()}
+    ).inserted_id
+
+    with pytest.raises(HTTPException) as error:
+        update_trail(
+            str(trail_id),
+            TrailUpdate(
+                trailname="Trail",
+                location="",
+                description="",
+                main_picture_id=str(picture_id),
+            ),
+            database,
+            owner,
+        )
+    assert error.value.status_code == 422
+
+
+def test_trail_card_prefers_selected_main_photo(database):
+    owner = ObjectId()
+    trail_id = make_trail(database, owner)
+    first_image = ObjectId()
+    main_image = ObjectId()
+    database.pictures.insert_one(
+        {"trailid": trail_id, "imageid": first_image, "access": "private", "timestamp": "1"}
+    )
+    main_picture = database.pictures.insert_one(
+        {"trailid": trail_id, "imageid": main_image, "access": "private", "timestamp": "2"}
+    ).inserted_id
+    database.trails.update_one(
+        {"_id": trail_id}, {"$set": {"main_pictureid": main_picture}}
+    )
+    trail = database.trails.find_one({"_id": trail_id})
+
+    prepare_trail_cards(database, [trail], owner)
+
+    assert trail["cover_imageid"] == main_image
 
 
 def test_location_and_picture_must_belong_to_url_trail(database):
@@ -97,9 +171,13 @@ def test_picture_delete_removes_image_and_metadata(database):
     picture_id = database.pictures.insert_one(
         {"trailid": trail_id, "imageid": image_id, "loc": {"type": "Point", "coordinates": [1, 2]}}
     ).inserted_id
+    database.trails.update_one(
+        {"_id": trail_id}, {"$set": {"main_pictureid": picture_id}}
+    )
     delete_picture(str(trail_id), str(picture_id), database, owner)
     assert database.pictures.find_one({"_id": picture_id}) is None
     assert database.images.find_one({"_id": image_id}) is None
+    assert "main_pictureid" not in database.trails.find_one({"_id": trail_id})
 
 
 def test_trail_delete_removes_all_dependents_and_unrelated_data_survives(database):

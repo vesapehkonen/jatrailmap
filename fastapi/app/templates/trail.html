@@ -17,6 +17,12 @@
         {% if trail.access == "public" %}<div class="trail-owner"><strong>Shared by {{ owner_profile.display_name }}</strong>{% if owner_profile.location %}<span>{{ owner_profile.location }}</span>{% endif %}</div>{% endif %}
       </div>
 
+      {% if main_photo %}
+        <a class="trail-main-photo" href="/image/{{ main_photo.imageid }}" target="_blank" rel="noopener" aria-label="Open main trail photo">
+          <img src="/image/{{ main_photo.imageid }}" alt="{{ main_photo.picturename or trail.trailname }}">
+        </a>
+      {% endif %}
+
       <section class="stat-grid" aria-label="Trail statistics">
         <div class="stat-card"><strong>{{ distance }}</strong><small>Distance</small></div>
         <div class="stat-card"><strong>{{ elapsed }}</strong><small>Elapsed</small></div>
