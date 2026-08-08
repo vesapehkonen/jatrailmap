@@ -1,29 +1,60 @@
 # JaTrail
 
-JaTrail is a web and Android application for recording, correcting, and sharing
-GPS trails with geotagged photos.
+JaTrail records GPS trails on Android and presents them on a private, group,
+or public web map with geotagged photos. Trail owners can correct GPS errors,
+move photo locations, choose a main trail photo, and control sharing from a
+single editor.
 
-![JaTrail screenshot](jatrailmap.png)
+<p align="center">
+  <img src="jatrail.jpg" alt="JaTrail web and Android application" width="720">
+</p>
+
+## Features
+
+- GPS trail recording and geotagged photos on Android
+- Multipart trail and photo uploads to a versioned JSON API
+- Interactive route maps with start, finish, and photo markers
+- Editable GPS points and photo locations with common Save and Cancel actions
+- Distance, elapsed-time, and interactive elevation profiles
+- Main photos for trail listings and detail pages
+- Private, group, and public trail and photo sharing
+- Optional public display name and location
+- Account, quota, moderation, storage, and registration administration
+- Secure password login, server-side sessions, CSRF protection, and centralized
+  trail access checks
 
 ## Active applications
 
-- `fastapi/` — FastAPI web application and JSON API
-- `android/` — Android GPS recording and upload application
+```text
+.
+├── fastapi/   FastAPI web application and JSON API
+├── android/   Android recording and upload application
+└── legacy/    Retired Node.js and Spring servers
+```
 
-The current server uses FastAPI, Pydantic, PyMongo, MongoDB, Jinja2 templates,
-and plain JavaScript. The Android application uploads trail metadata and photos
-through the multipart `POST /api/v1/trails` endpoint.
+The active server uses FastAPI, Pydantic, PyMongo, MongoDB, Jinja2, and plain
+JavaScript. Photos are stored as BSON binary data in MongoDB. The Android client
+uses `POST /api/v1/trails` for multipart uploads.
 
-## Web application setup
+The applications in `legacy/` are historical migration references. Do not run
+them against the current database; see [legacy/README.md](legacy/README.md).
 
-Clone the repository and enter the FastAPI project:
+## Requirements
+
+- Python 3.11 or newer
+- MongoDB
+- Android Studio or a compatible JDK and Android SDK for Android development
+
+## FastAPI setup
+
+Clone the repository and enter the server directory:
 
 ```bash
 git clone https://github.com/vesapehkonen/jatrail.git
 cd jatrail/fastapi
 ```
 
-Create a virtual environment and install the application:
+Create a virtual environment, install JaTrail, and create local configuration:
 
 ```bash
 python3 -m venv .venv
@@ -31,29 +62,86 @@ python3 -m venv .venv
 cp .env.example .env
 ```
 
-Review `.env`, ensure MongoDB is available, and start the development server:
+Review `.env` before starting the server. In particular, configure the MongoDB
+URI, database name, allowed hosts, secure cookies, and upload limits for the
+deployment environment.
+
+Start the development server:
 
 ```bash
 .venv/bin/uvicorn app.main:app --reload
 ```
 
-Run the server tests with:
+The default local address is <http://127.0.0.1:8000>.
+
+### Create an administrator
+
+Create the first administrator interactively:
 
 ```bash
+.venv/bin/python -m app.admin_cli create admin
+```
+
+An existing account can be promoted with:
+
+```bash
+.venv/bin/python -m app.admin_cli promote USERNAME
+```
+
+The administrator dashboard is available at `/admin` after signing in.
+
+### Migrate legacy user profiles
+
+Preview and then apply the idempotent profile migration:
+
+```bash
+.venv/bin/python migrate_user_profiles.py --dry-run
+.venv/bin/python migrate_user_profiles.py
+```
+
+The migration converts the legacy name and location fields while keeping the
+migrated public-profile visibility settings disabled.
+
+## Android development
+
+Open `android/` in Android Studio, or run its Gradle wrapper from the repository
+root:
+
+```bash
+cd android
+./gradlew test
+./gradlew assembleDebug
+```
+
+Configure the JaTrail server URL in the application before uploading to a
+non-default environment. The server must expose `POST /api/v1/trails` over
+HTTPS outside local development.
+
+## Tests
+
+Run the FastAPI tests:
+
+```bash
+cd fastapi
 .venv/bin/pytest -q
 ```
 
-## Android application
+Run the Android unit tests:
 
-Open `android/` in Android Studio or use its Gradle wrapper. Configure the
-server URL in the application before uploading trails to another environment.
+```bash
+cd android
+./gradlew test
+```
 
-## Legacy servers
+## Data and security notes
 
-The retired Node.js and Spring implementations are preserved under `legacy/`
-for historical migration reference only. They must not be run against the
-current JaTrail database. See [`legacy/README.md`](legacy/README.md) for details.
+- The current MongoDB database name is `jatrail` unless overridden in `.env`.
+- Images are stored as BSON binary data, not Base64 strings.
+- Per-user MongoDB quota values override environment defaults.
+- Public trail and photo access is always checked on the server.
+- `.env`, virtual environments, build products, and local Android configuration
+  are intentionally excluded from version control.
 
 ## License
 
-JaTrail is licensed under the MIT License. See `LICENSE.txt`.
+JaTrail is licensed under the MIT License. See [LICENSE.txt](LICENSE.txt).
