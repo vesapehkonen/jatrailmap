@@ -1,0 +1,7 @@
+jatrail.env
+caddy.env
+secrets/
+backups/
+*.archive
+*.archive.gz
+*.dump

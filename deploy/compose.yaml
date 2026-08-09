@@ -1,0 +1,147 @@
+name: jatrail
+
+services:
+  mongo:
+    image: mongo:8.0.26-noble
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
+      MONGO_INITDB_DATABASE: jatrail
+    secrets:
+      - mongo_root_username
+      - mongo_root_password
+      - mongo_app_username
+      - mongo_app_password
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+      - ./mongo-init/01-create-app-user.sh:/docker-entrypoint-initdb.d/01-create-app-user.sh:ro
+    networks:
+      - backend
+    command:
+      - mongod
+      - --auth
+      - --bind_ip_all
+      - --wiredTigerCacheSizeGB
+      - "0.256"
+      - --maxConns
+      - "100"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --host 127.0.0.1
+          --username "$$(cat /run/secrets/mongo_root_username)"
+          --password "$$(cat /run/secrets/mongo_root_password)"
+          --authenticationDatabase admin
+          --eval "quit(db.adminCommand({ping: 1}).ok ? 0 : 2)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    mem_limit: 352m
+    cpus: 0.55
+    pids_limit: 128
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+  web:
+    image: jatrail-web:phase3
+    build:
+      context: ../fastapi
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: ./jatrail.env
+        required: true
+    environment:
+      JATRAIL_MONGODB_URI: mongodb://mongo:27017/?authSource=jatrail
+      JATRAIL_MONGODB_DATABASE: jatrail
+      JATRAIL_MONGODB_USERNAME_FILE: /run/secrets/mongo_app_username
+      JATRAIL_MONGODB_PASSWORD_FILE: /run/secrets/mongo_app_password
+    secrets:
+      - mongo_app_username
+      - mongo_app_password
+    depends_on:
+      mongo:
+        condition: service_healthy
+        restart: true
+    networks:
+      - backend
+      - proxy
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 96m
+    cpus: 0.35
+    pids_limit: 64
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+  caddy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    env_file:
+      - path: ./caddy.env
+        required: true
+    depends_on:
+      web:
+        condition: service_healthy
+        restart: true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - proxy
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    mem_limit: 32m
+    cpus: 0.10
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+networks:
+  backend:
+    internal: true
+  proxy:
+
+volumes:
+  mongo_data:
+  mongo_config:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  mongo_root_username:
+    file: ./secrets/mongo_root_username
+  mongo_root_password:
+    file: ./secrets/mongo_root_password
+  mongo_app_username:
+    file: ./secrets/mongo_app_username
+  mongo_app_password:
+    file: ./secrets/mongo_app_password

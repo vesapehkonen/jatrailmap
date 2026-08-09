@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
@@ -8,8 +9,26 @@ from pymongo.database import Database
 from .config import Settings
 
 
+def mongo_client_credentials(settings: Settings) -> dict[str, str]:
+    username_file = settings.mongodb_username_file
+    password_file = settings.mongodb_password_file
+    if bool(username_file) != bool(password_file):
+        raise ValueError("MongoDB username and password files must be configured together")
+    if not username_file:
+        return {}
+    username = Path(username_file).read_text(encoding="utf-8").strip()
+    password = Path(password_file).read_text(encoding="utf-8").strip()
+    if not username or not password:
+        raise ValueError("MongoDB credential files must not be empty")
+    return {"username": username, "password": password}
+
+
 def connect(settings: Settings) -> MongoClient[Any]:
-    client: MongoClient[Any] = MongoClient(settings.mongodb_uri, tz_aware=True)
+    client: MongoClient[Any] = MongoClient(
+        settings.mongodb_uri,
+        tz_aware=True,
+        **mongo_client_credentials(settings),
+    )
     client.admin.command("ping")
     return client
 

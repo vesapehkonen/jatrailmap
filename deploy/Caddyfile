@@ -1,0 +1,18 @@
+{$JATRAIL_SITE_ADDRESS:http://localhost} {
+	# Keep this higher than FastAPI's upload limit so Android receives JaTrail's
+	# structured JSON validation errors instead of a proxy-generated response.
+	request_body {
+		max_size {$JATRAIL_MAX_REQUEST_BODY:150MB}
+	}
+
+	encode zstd gzip
+
+	reverse_proxy web:8000 {
+		health_uri /health
+		health_headers {
+			Host localhost
+		}
+		health_interval 30s
+		health_timeout 5s
+	}
+}

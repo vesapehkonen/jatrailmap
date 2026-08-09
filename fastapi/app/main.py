@@ -22,6 +22,23 @@ from .routes.admin import router as admin_router
 BASE_DIR = Path(__file__).resolve().parent
 
 
+def database_is_ready(database: Database[Any]) -> bool:
+    try:
+        database.command("ping")
+    except Exception:
+        return False
+    return True
+
+
+def health_response(database: Database[Any]) -> JSONResponse:
+    if not database_is_ready(database):
+        return JSONResponse(
+            {"status": "unavailable", "database": "unavailable"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return JSONResponse({"status": "ok", "database": "ok"})
+
+
 def create_app(settings: Settings | None = None, database: Database[Any] | None = None) -> FastAPI:
     app_settings = settings or get_settings()
 
@@ -46,6 +63,10 @@ def create_app(settings: Settings | None = None, database: Database[Any] | None 
     @application.get("/favicon.ico", include_in_schema=False)
     def favicon() -> FileResponse:
         return FileResponse(BASE_DIR / "static" / "favicon.ico", media_type="image/x-icon")
+
+    @application.get("/health", include_in_schema=False)
+    def health(request: Request) -> JSONResponse:
+        return health_response(request.app.state.db)
 
     @application.middleware("http")
     async def security_middleware(request: Request, call_next: Any) -> Any:

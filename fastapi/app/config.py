@@ -6,6 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "jatrail"
+    mongodb_username_file: str = ""
+    mongodb_password_file: str = ""
     session_max_age_seconds: int = 86_400
     secure_cookies: bool = True
     allowed_hosts: str = "localhost,127.0.0.1"

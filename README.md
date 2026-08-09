@@ -74,6 +74,54 @@ Start the development server:
 
 The default local address is <http://127.0.0.1:8000>.
 
+### Production container
+
+Build the production FastAPI image from the repository root:
+
+```bash
+docker build -t jatrail-web ./fastapi
+```
+
+Create a private production environment file from
+`fastapi/.env.production.example`. Its MongoDB host must be reachable from the
+container; `localhost` inside the container refers to the container itself.
+Then start the application:
+
+```bash
+docker run --rm --name jatrail-web \
+  --env-file fastapi/.env.production \
+  -p 8000:8000 \
+  jatrail-web
+```
+
+The image runs as a non-root user and reports application and MongoDB readiness
+at `/health`. MongoDB is not included in this Phase 1 image.
+
+### Docker Compose stack
+
+The Phase 3 stack in `deploy/compose.yaml` runs Caddy, FastAPI, and an
+authenticated MongoDB with persistent volumes. Caddy is the only service with
+published host ports; FastAPI and MongoDB stay on private Compose networks.
+Caddy creates and renews HTTPS certificates automatically.
+
+Follow [deploy/README.md](deploy/README.md) to create local secret and
+environment files, configure the public hostname, and start the stack.
+
+### Container publishing
+
+Pushes to `main` that change FastAPI code automatically run the FastAPI tests,
+build the production image on a GitHub-hosted runner, and publish it to:
+
+```text
+ghcr.io/vesapehkonen/jatrail:<full-git-commit-sha>
+ghcr.io/vesapehkonen/jatrail:latest
+```
+
+The full commit tag is protected from replacement; `latest` follows the newest
+successful build. Android-only and documentation-only pushes do not start the
+workflow. The workflow does not deploy to the VPS, create Git tags, or delete
+container images.
+
 ### Create an administrator
 
 Create the first administrator interactively:
