@@ -14,6 +14,11 @@ CPU shares total one core. MongoDB uses the minimum supported 0.256 GB
 WiredTiger cache and accepts at most 100 simultaneous connections. Docker logs
 rotate at 5 MB with two files per service.
 
+MongoDB is pinned to `7.0.39-jammy`. MongoDB 8.0 and newer cannot start on
+Linux kernels 6.19 through 7.0.13 because of an upstream TCMalloc
+incompatibility. Keep the 7.0 pin while deploying on an affected VPS kernel;
+do not change it to MongoDB 8 without first confirming kernel compatibility.
+
 This is MongoDB's practical lower edge and leaves very little memory for Linux
 and Docker. Configure at least 1 GB of swap on the VPS to absorb short-lived
 startup, health-check, backup, and upgrade peaks. Swap is protection against an

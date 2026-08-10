@@ -2,7 +2,9 @@ name: jatrail
 
 services:
   mongo:
-    image: mongo:8.0.26-noble
+    # MongoDB 8.0+ cannot start on Linux kernels 6.19 through 7.0.13 because
+    # of its newer TCMalloc. MongoDB 7 uses the compatible earlier allocator.
+    image: mongo:7.0.39-jammy
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username

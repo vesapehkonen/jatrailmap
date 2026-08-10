@@ -56,6 +56,7 @@ def test_compose_small_vps_resource_budget() -> None:
     compose = yaml.safe_load((REPOSITORY_ROOT / "deploy" / "compose.yaml").read_text())
     services = compose["services"]
 
+    assert services["mongo"]["image"] == "mongo:7.0.39-jammy"
     assert services["mongo"]["mem_limit"] == "352m"
     assert services["web"]["mem_limit"] == "96m"
     assert services["caddy"]["mem_limit"] == "32m"
