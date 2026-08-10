@@ -77,10 +77,12 @@ repository root:
 
 The script verifies that all local environment and MongoDB secret files exist,
 pulls only the selected FastAPI image, starts Compose with `--no-build`, waits
-for container health checks, and requests the public `/health` endpoint. It
-writes the selected SHA to ignored `deploy/image.env` and, after successful
-health verification, to ignored `deploy/.deployed-image`. On a fresh server it
-also pulls the MongoDB and Caddy images before starting Compose.
+for container health checks, and requests the public `/health` endpoint. After
+MongoDB is healthy, it synchronizes the database application account password
+and `readWrite` role from the existing mounted secret files before FastAPI is
+started. It writes the selected SHA to ignored `deploy/image.env` and, after
+successful health verification, to ignored `deploy/.deployed-image`. On a
+fresh server it also pulls the MongoDB and Caddy images before starting Compose.
 
 For local testing or convenience, the moving tag is accepted explicitly:
 

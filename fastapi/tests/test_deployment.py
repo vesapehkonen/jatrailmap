@@ -98,8 +98,18 @@ def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
     assert "latest|[0-9a-f]{40}" in script
     assert "pull mongo caddy" in script
     assert "pull web" in script
+    assert "--wait mongo" in script
+    assert "01-create-app-user.sh" in script
+    assert "--wait web caddy" in script
     assert "--no-build --pull never --wait" in script
     assert 'curl --fail' in script
     assert "secrets/mongo_app_password" in script
     assert "docker image" not in script
     assert "rollback" in script.lower()
+
+    init_script = (
+        REPOSITORY_ROOT / "deploy" / "mongo-init" / "01-create-app-user.sh"
+    ).read_text()
+    assert "db.updateUser" in init_script
+    assert "/run/secrets/mongo_root_username" in init_script
+    assert "/run/secrets/mongo_root_password" in init_script

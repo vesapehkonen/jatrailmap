@@ -56,9 +56,17 @@ docker compose --env-file "$next_env" -f "$compose_file" pull web
 mv -- "$next_env" "$image_env"
 trap - EXIT HUP INT TERM
 
-echo "Starting JaTrail without building images on this VPS"
+echo "Starting MongoDB"
 docker compose --env-file "$image_env" -f "$compose_file" up \
-    -d --no-build --pull never --wait
+    -d --no-build --pull never --wait mongo
+
+echo "Synchronizing the MongoDB application account from local secret files"
+docker compose --env-file "$image_env" -f "$compose_file" exec -T mongo \
+    bash /docker-entrypoint-initdb.d/01-create-app-user.sh
+
+echo "Starting FastAPI and Caddy without building images on this VPS"
+docker compose --env-file "$image_env" -f "$compose_file" up \
+    -d --no-build --pull never --wait web caddy
 
 site_address=$(sed -n 's/^JATRAIL_SITE_ADDRESS=//p' "$script_dir/caddy.env" | tail -n 1)
 case "$site_address" in
