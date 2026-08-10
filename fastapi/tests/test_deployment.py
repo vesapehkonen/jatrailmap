@@ -113,6 +113,10 @@ def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
     assert "--wait web caddy" in script
     assert "--no-build --pull never --wait" in script
     assert 'curl --fail' in script
+    assert "health_attempts=12" in script
+    assert "health_retry_seconds=5" in script
+    assert "--max-time 5" in script
+    assert "docker logs --tail=200 jatrail-caddy-1" in script
     assert "secrets/mongo_app_password" in script
     assert "docker image" not in script
     assert "rollback" in script.lower()

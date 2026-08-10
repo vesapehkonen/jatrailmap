@@ -91,8 +91,25 @@ case "$site_address" in
 esac
 
 echo "Checking $health_base/health"
-curl --fail --silent --show-error --max-time 20 "$health_base/health"
-printf '\n'
+health_attempt=1
+health_attempts=12
+health_retry_seconds=5
+while :; do
+    if curl --fail --silent --show-error --max-time 5 "$health_base/health"; then
+        printf '\n'
+        break
+    fi
+
+    if [ "$health_attempt" -ge "$health_attempts" ]; then
+        echo "Public health check failed after $health_attempt attempts" >&2
+        echo "Inspect Caddy with: docker logs --tail=200 jatrail-caddy-1" >&2
+        exit 1
+    fi
+
+    echo "Public endpoint is not ready; retrying in ${health_retry_seconds}s ($health_attempt/$health_attempts)"
+    sleep "$health_retry_seconds"
+    health_attempt=$((health_attempt + 1))
+done
 
 printf '%s\n' "$commit_sha" > "$deployed_record"
 chmod 600 "$image_env" "$deployed_record"

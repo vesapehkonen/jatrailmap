@@ -84,6 +84,12 @@ started. It writes the selected SHA to ignored `deploy/image.env` and, after
 successful health verification, to ignored `deploy/.deployed-image`. On a
 fresh server it also pulls the MongoDB and Caddy images before starting Compose.
 
+The final public HTTPS health check uses short 5-second requests and retries up
+to 12 times with 5 seconds between attempts. This gives Caddy time to obtain its
+first certificate without making normal requests wait for one long timeout. If
+the bounded check still fails, deployment reports failure and prints the Caddy
+log command; it does not roll back.
+
 For local testing or convenience, the moving tag is accepted explicitly:
 
 ```bash
