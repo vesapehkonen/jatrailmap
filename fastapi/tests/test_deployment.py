@@ -33,9 +33,13 @@ def test_caddy_proxies_to_internal_web_and_limits_request_bodies() -> None:
     caddyfile = (REPOSITORY_ROOT / "deploy" / "Caddyfile").read_text()
 
     assert "reverse_proxy web:8000" in caddyfile
-    assert "Host localhost" in caddyfile
+    assert "health_uri" not in caddyfile
     assert "request_body" in caddyfile
     assert "JATRAIL_MAX_REQUEST_BODY:150MB" in caddyfile
+
+    dockerfile = (REPOSITORY_ROOT / "fastapi" / "Dockerfile").read_text()
+    assert "JATRAIL_ALLOWED_HOSTS" in dockerfile
+    assert "headers={'Host': host}" in dockerfile
 
 
 def test_mongodb_backup_is_scoped_and_uses_existing_secrets() -> None:

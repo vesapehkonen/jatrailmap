@@ -114,6 +114,11 @@ Requests to HTTP are redirected to HTTPS automatically. Caddy stores
 certificates and renewal state in `jatrail_caddy_data`; recreating containers
 does not discard them.
 
+The FastAPI container health check uses the first hostname from
+`JATRAIL_ALLOWED_HOSTS`. Keep the public deployment hostname first in that
+setting. Caddy relies on this container health check and normal passive proxy
+failure detection rather than a second localhost-based active probe.
+
 ## Local HTTP validation
 
 For a machine without a public DNS name, set:

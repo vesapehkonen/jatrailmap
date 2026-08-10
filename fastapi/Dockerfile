@@ -20,7 +20,7 @@ USER 10001:10001
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+    CMD ["python", "-c", "import os, urllib.request; host=os.environ.get('JATRAIL_ALLOWED_HOSTS', 'localhost').split(',')[0].strip(); request=urllib.request.Request('http://127.0.0.1:8000/health', headers={'Host': host}); urllib.request.urlopen(request, timeout=3)"]
 
 # The container is reachable only through Caddy. Trust its forwarded scheme and
 # client headers so HTTPS URLs and security behavior use the original request.
