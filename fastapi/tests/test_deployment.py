@@ -94,7 +94,8 @@ def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
     assert web["image"].startswith("ghcr.io/vesapehkonen/jatrail:")
     assert "JATRAIL_IMAGE_VERSION" in web["image"]
     assert "build" not in web
-    assert "^[0-9a-f]{40}$" in script
+    assert "latest|[0-9a-f]{40}" in script
+    assert "pull mongo caddy" in script
     assert "pull web" in script
     assert "--no-build --pull never --wait" in script
     assert 'curl --fail' in script

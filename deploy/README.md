@@ -74,7 +74,16 @@ The script verifies that all local environment and MongoDB secret files exist,
 pulls only the selected FastAPI image, starts Compose with `--no-build`, waits
 for container health checks, and requests the public `/health` endpoint. It
 writes the selected SHA to ignored `deploy/image.env` and, after successful
-health verification, to ignored `deploy/.deployed-image`.
+health verification, to ignored `deploy/.deployed-image`. On a fresh server it
+also pulls the MongoDB and Caddy images before starting Compose.
+
+For local testing or convenience, the moving tag is accepted explicitly:
+
+```bash
+./deploy/deploy_image.sh latest
+```
+
+Use a full SHA for production so the deployed FastAPI image is unambiguous.
 
 It never creates or overwrites anything in `deploy/secrets`, never deletes
 images, and performs no automatic rollback. If deployment fails, inspect the

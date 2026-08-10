@@ -7,13 +7,17 @@ compose_file="$script_dir/compose.yaml"
 image_env="$script_dir/image.env"
 deployed_record="$script_dir/.deployed-image"
 
-if [ "$#" -ne 1 ] || ! printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{40}$'; then
-    echo "Usage: $0 <full-40-character-lowercase-git-commit-sha>" >&2
+if [ "$#" -ne 1 ] || ! printf '%s\n' "$1" | grep -Eq '^(latest|[0-9a-f]{40})$'; then
+    echo "Usage: $0 <latest|full-40-character-lowercase-git-commit-sha>" >&2
     exit 2
 fi
 
 commit_sha=$1
 image="ghcr.io/vesapehkonen/jatrail:$commit_sha"
+
+if [ "$commit_sha" = "latest" ]; then
+    echo "Warning: latest is a moving tag; use a full commit SHA for production" >&2
+fi
 
 required_files="
 $script_dir/jatrail.env
@@ -40,7 +44,10 @@ trap cleanup EXIT HUP INT TERM
 umask 077
 printf 'JATRAIL_IMAGE_VERSION=%s\n' "$commit_sha" > "$next_env"
 
-echo "Pulling immutable FastAPI image: $image"
+echo "Pulling MongoDB and Caddy images required by the Compose stack"
+docker compose --env-file "$next_env" -f "$compose_file" pull mongo caddy
+
+echo "Pulling FastAPI image: $image"
 docker compose --env-file "$next_env" -f "$compose_file" pull web
 
 # Record the selected image atomically before changing containers. If startup
