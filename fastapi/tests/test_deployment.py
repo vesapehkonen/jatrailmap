@@ -38,8 +38,11 @@ def test_caddy_proxies_to_internal_web_and_limits_request_bodies() -> None:
     assert "JATRAIL_MAX_REQUEST_BODY:150MB" in caddyfile
 
     dockerfile = (REPOSITORY_ROOT / "fastapi" / "Dockerfile").read_text()
-    assert "JATRAIL_ALLOWED_HOSTS" in dockerfile
-    assert "headers={'Host': host}" in dockerfile
+    assert "http://localhost:8000/health" in dockerfile
+    assert "--interval=10s" in dockerfile
+    assert "--timeout=2s" in dockerfile
+    assert "--start-period=5s" in dockerfile
+    assert "--retries=2" in dockerfile
 
 
 def test_mongodb_backup_is_scoped_and_uses_existing_secrets() -> None:
@@ -61,6 +64,8 @@ def test_compose_small_vps_resource_budget() -> None:
     services = compose["services"]
 
     assert services["mongo"]["image"] == "mongo:7.0.39-jammy"
+    assert "healthcheck" not in services["mongo"]
+    assert services["web"]["depends_on"]["mongo"]["condition"] == "service_started"
     assert services["mongo"]["mem_limit"] == "352m"
     assert services["web"]["mem_limit"] == "96m"
     assert services["caddy"]["mem_limit"] == "32m"
@@ -102,7 +107,8 @@ def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
     assert "latest|[0-9a-f]{40}" in script
     assert "pull mongo caddy" in script
     assert "pull web" in script
-    assert "--wait mongo" in script
+    assert "Checking MongoDB once" in script
+    assert script.count("mongosh --quiet") == 1
     assert "01-create-app-user.sh" in script
     assert "--wait web caddy" in script
     assert "--no-build --pull never --wait" in script

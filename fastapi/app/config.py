@@ -22,7 +22,8 @@ class Settings(BaseSettings):
 
     @property
     def allowed_host_list(self) -> list[str]:
-        return [item.strip() for item in self.allowed_hosts.split(",") if item.strip()]
+        configured = [item.strip() for item in self.allowed_hosts.split(",") if item.strip()]
+        return list(dict.fromkeys([*configured, "localhost", "127.0.0.1"]))
 
 
 @lru_cache

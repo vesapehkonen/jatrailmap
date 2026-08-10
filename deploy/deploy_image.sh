@@ -58,7 +58,19 @@ trap - EXIT HUP INT TERM
 
 echo "Starting MongoDB"
 docker compose --env-file "$image_env" -f "$compose_file" up \
-    -d --no-build --pull never --wait mongo
+    -d --no-build --pull never mongo
+
+# Allow the small VPS to finish startup, then run one authenticated readiness
+# check. This is intentionally not a recurring Compose health check.
+sleep 3
+echo "Checking MongoDB once"
+docker compose --env-file "$image_env" -f "$compose_file" exec -T mongo sh -ec '
+    mongosh --quiet --host 127.0.0.1 \
+        --username "$(cat /run/secrets/mongo_root_username)" \
+        --password "$(cat /run/secrets/mongo_root_password)" \
+        --authenticationDatabase admin \
+        --eval "quit(db.adminCommand({ping: 1}).ok ? 0 : 2)"
+'
 
 echo "Synchronizing the MongoDB application account from local secret files"
 docker compose --env-file "$image_env" -f "$compose_file" exec -T mongo \

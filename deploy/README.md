@@ -114,10 +114,15 @@ Requests to HTTP are redirected to HTTPS automatically. Caddy stores
 certificates and renewal state in `jatrail_caddy_data`; recreating containers
 does not discard them.
 
-The FastAPI container health check uses the first hostname from
-`JATRAIL_ALLOWED_HOSTS`. Keep the public deployment hostname first in that
-setting. Caddy relies on this container health check and normal passive proxy
-failure detection rather than a second localhost-based active probe.
+The FastAPI container checks `http://localhost:8000/health` directly. Localhost
+is always accepted internally in addition to the configured public trusted
+hosts. The check starts after 5 seconds, uses a 1-second request timeout and a
+2-second container timeout, and retries twice at 10-second intervals.
+
+MongoDB has no recurring Compose health check because each `mongosh` process is
+too expensive for the 352 MB database container. The deployment script starts
+MongoDB, runs one authenticated ping, and only after it finishes runs the
+application-user synchronization. The two `mongosh` operations are sequential.
 
 ## Local HTTP validation
 

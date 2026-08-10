@@ -29,19 +29,6 @@ services:
       - "0.256"
       - --maxConns
       - "100"
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          mongosh --quiet --host 127.0.0.1
-          --username "$$(cat /run/secrets/mongo_root_username)"
-          --password "$$(cat /run/secrets/mongo_root_password)"
-          --authenticationDatabase admin
-          --eval "quit(db.adminCommand({ping: 1}).ok ? 0 : 2)"
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     mem_limit: 352m
     cpus: 0.55
     pids_limit: 128
@@ -70,7 +57,7 @@ services:
       - mongo_app_password
     depends_on:
       mongo:
-        condition: service_healthy
+        condition: service_started
         restart: true
     networks:
       - backend
