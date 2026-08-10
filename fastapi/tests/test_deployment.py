@@ -84,3 +84,20 @@ def test_fastapi_publish_workflow_scope_and_tags() -> None:
     assert "imagetools inspect" in workflow
     assert "docker/build-push-action@v6" in workflow
     assert "retention" not in workflow.lower()
+
+
+def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
+    compose = yaml.safe_load((REPOSITORY_ROOT / "deploy" / "compose.yaml").read_text())
+    web = compose["services"]["web"]
+    script = (REPOSITORY_ROOT / "deploy" / "deploy_image.sh").read_text()
+
+    assert web["image"].startswith("ghcr.io/vesapehkonen/jatrail:")
+    assert "JATRAIL_IMAGE_VERSION" in web["image"]
+    assert "build" not in web
+    assert "^[0-9a-f]{40}$" in script
+    assert "pull web" in script
+    assert "--no-build --pull never --wait" in script
+    assert 'curl --fail' in script
+    assert "secrets/mongo_app_password" in script
+    assert "docker image" not in script
+    assert "rollback" in script.lower()

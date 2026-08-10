@@ -4,8 +4,14 @@ set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 compose_file="$script_dir/compose.yaml"
+image_env="$script_dir/image.env"
 backup_dir=${JATRAIL_BACKUP_DIR:-"$script_dir/backups"}
 retention_days=${JATRAIL_BACKUP_RETENTION_DAYS:-14}
+
+if [ ! -s "$image_env" ]; then
+    echo "Missing $image_env; copy image.env.example or deploy an image first" >&2
+    exit 2
+fi
 
 case "$retention_days" in
     ''|*[!0-9]*)
@@ -27,7 +33,7 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 echo "Creating MongoDB backup: $archive"
-docker compose -f "$compose_file" exec -T mongo sh -ec '
+docker compose --env-file "$image_env" -f "$compose_file" exec -T mongo sh -ec '
     mongodump \
         --host 127.0.0.1:27017 \
         --username "$(cat /run/secrets/mongo_app_username)" \

@@ -28,6 +28,7 @@ From the repository root:
 ```bash
 cp deploy/jatrail.env.example deploy/jatrail.env
 cp deploy/caddy.env.example deploy/caddy.env
+cp deploy/image.env.example deploy/image.env
 mkdir -p deploy/secrets
 chmod 700 deploy/secrets
 ```
@@ -53,20 +54,44 @@ Keep `deploy/secrets` at mode `0700`. Compose local secrets preserve host
 ownership, so the files need mode `0644` for the unprivileged containers to
 read them; other host users still cannot traverse the directory.
 
-Validate and start the stack:
+Validate the configuration:
 
 ```bash
-docker compose -f deploy/compose.yaml config
-docker compose -f deploy/compose.yaml up -d --build --wait
-curl https://trails.example.com/health
-docker compose -f deploy/compose.yaml ps
+docker compose --env-file deploy/image.env -f deploy/compose.yaml config
+```
+
+## Deploy a FastAPI image
+
+GitHub Actions publishes each successful `main` build to GHCR with its full
+40-character Git commit SHA. Deploy that exact immutable image from the
+repository root:
+
+```bash
+./deploy/deploy_image.sh FULL_40_CHARACTER_COMMIT_SHA
+```
+
+The script verifies that all local environment and MongoDB secret files exist,
+pulls only the selected FastAPI image, starts Compose with `--no-build`, waits
+for container health checks, and requests the public `/health` endpoint. It
+writes the selected SHA to ignored `deploy/image.env` and, after successful
+health verification, to ignored `deploy/.deployed-image`.
+
+It never creates or overwrites anything in `deploy/secrets`, never deletes
+images, and performs no automatic rollback. If deployment fails, inspect the
+reported state and rerun the same SHA after correcting the problem.
+
+For a public GHCR package, no registry login is needed. For a private package,
+log in once manually on the VPS with a token limited to `read:packages`:
+
+```bash
+docker login ghcr.io
 ```
 
 The first public start can take a short time while Caddy obtains the
 certificate. Follow progress with:
 
 ```bash
-docker compose -f deploy/compose.yaml logs -f caddy web
+docker compose --env-file deploy/image.env -f deploy/compose.yaml logs -f caddy web
 ```
 
 Requests to HTTP are redirected to HTTPS automatically. Caddy stores
@@ -106,11 +131,10 @@ increase the Caddy value as well.
 ## Routine operations
 
 ```bash
-docker compose -f deploy/compose.yaml up -d --build --wait
-docker compose -f deploy/compose.yaml restart web
-docker compose -f deploy/compose.yaml logs --tail=200 caddy web mongo
+docker compose --env-file deploy/image.env -f deploy/compose.yaml restart web
+docker compose --env-file deploy/image.env -f deploy/compose.yaml logs --tail=200 caddy web mongo
 docker stats --no-stream
-docker compose -f deploy/compose.yaml down
+docker compose --env-file deploy/image.env -f deploy/compose.yaml down
 ```
 
 `down` preserves all named volumes. Never run `down --volumes` against data or
@@ -173,9 +197,9 @@ Restoring with `--drop` replaces the current collections. Stop FastAPI first,
 select the archive deliberately, and keep MongoDB running:
 
 ```bash
-docker compose -f deploy/compose.yaml stop web
+docker compose --env-file deploy/image.env -f deploy/compose.yaml stop web
 
-docker compose -f deploy/compose.yaml exec -T mongo sh -ec '
+docker compose --env-file deploy/image.env -f deploy/compose.yaml exec -T mongo sh -ec '
   mongorestore \
     --host 127.0.0.1:27017 \
     --username "$(cat /run/secrets/mongo_app_username)" \
@@ -187,7 +211,7 @@ docker compose -f deploy/compose.yaml exec -T mongo sh -ec '
     --gzip
 ' < deploy/backups/jatrail-YYYYMMDDTHHMMSSZ.archive.gz
 
-docker compose -f deploy/compose.yaml start web
+docker compose --env-file deploy/image.env -f deploy/compose.yaml start web
 ```
 
 Check `https://your-domain.example/health` and inspect a few trails after the

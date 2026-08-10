@@ -122,6 +122,16 @@ successful build. Android-only and documentation-only pushes do not start the
 workflow. The workflow does not deploy to the VPS, create Git tags, or delete
 container images.
 
+Deploy a published immutable image manually on the VPS with:
+
+```bash
+./deploy/deploy_image.sh FULL_40_CHARACTER_COMMIT_SHA
+```
+
+The VPS pulls the image from GHCR and never builds FastAPI locally. See
+[deploy/README.md](deploy/README.md) for initial configuration, private-package
+login, health verification, and operational commands.
+
 ### Create an administrator
 
 Create the first administrator interactively:

@@ -53,10 +53,7 @@ services:
         max-file: "2"
 
   web:
-    image: jatrail-web:phase3
-    build:
-      context: ../fastapi
-      dockerfile: Dockerfile
+    image: ghcr.io/vesapehkonen/jatrail:${JATRAIL_IMAGE_VERSION:?Set JATRAIL_IMAGE_VERSION in deploy/image.env}
     restart: unless-stopped
     env_file:
       - path: ./jatrail.env
