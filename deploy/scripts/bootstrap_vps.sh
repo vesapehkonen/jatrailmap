@@ -7,12 +7,13 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
     exit 2
 fi
 
-if [[ $# -ne 1 ]] || ! id "$1" >/dev/null 2>&1; then
-    echo "Usage: bootstrap_vps.sh EXISTING_DEPLOYMENT_USER" >&2
+if [[ $# -ne 2 ]] || ! id "$1" >/dev/null 2>&1 || [[ ! -d "$2" ]]; then
+    echo "Usage: bootstrap_vps.sh EXISTING_DEPLOYMENT_USER EXAMPLE_DIRECTORY" >&2
     exit 2
 fi
 
 deploy_user=$1
+example_dir=$2
 deploy_group=$(id -gn "$deploy_user")
 
 if [[ ! -r /etc/os-release ]]; then
@@ -85,6 +86,29 @@ create_secret_if_missing \
 create_secret_if_missing \
     /srv/jatrail/deploy/secrets/mongo_app_password \
     "$(openssl rand -base64 48)"
+
+create_config_if_missing() {
+    local source=$1
+    local target=$2
+    if [[ ! -s "$source" ]]; then
+        echo "Bootstrap configuration template is missing or empty: $source" >&2
+        exit 2
+    fi
+    if [[ -e "$target" || -L "$target" ]]; then
+        echo "Preserving existing runtime configuration: $target"
+        return
+    fi
+
+    install -m 0600 -o "$deploy_user" -g "$deploy_group" "$source" "$target"
+    echo "Created runtime configuration: $target"
+}
+
+create_config_if_missing \
+    "$example_dir/jatrail.env" \
+    /srv/jatrail/deploy/jatrail.env
+create_config_if_missing \
+    "$example_dir/caddy.env" \
+    /srv/jatrail/deploy/caddy.env
 
 docker --version
 docker compose version

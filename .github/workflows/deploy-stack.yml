@@ -40,7 +40,6 @@ jobs:
           tar -czf "$RUNNER_TEMP/jatrail-deploy.tgz" \
             deploy/compose.yaml \
             deploy/Caddyfile \
-            deploy/examples/jatrail.env \
             deploy/mongo-init/01-create-app-user.sh \
             deploy/scripts/common.sh \
             deploy/scripts/verify_runtime.sh \

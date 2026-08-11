@@ -156,13 +156,15 @@ def test_manual_workflows_do_not_clone_source_onto_vps() -> None:
         assert "git pull" not in workflow
 
     assert "bootstrap_vps.sh" in bootstrap
+    assert "deploy/examples/jatrail.env" in bootstrap
+    assert "deploy/examples/caddy.env" in bootstrap
     assert "compose.yaml" not in bootstrap
 
     assert "Create allowlisted deployment bundle" in stack
     assert "deploy/compose.yaml" in stack
     assert "deploy/Caddyfile" in stack
-    assert "deploy/examples/jatrail.env" in stack
     assert "deploy/scripts/install_bundle.sh" in stack
+    assert "deploy/examples/jatrail.env" not in stack
     assert "deploy/examples/caddy.env" not in stack
     assert "deploy/examples/image.env" not in stack
     assert "fastapi/" not in stack
@@ -189,12 +191,16 @@ def test_bootstrap_and_bundle_installer_preserve_runtime_secrets() -> None:
     assert "mongo_app_password" in bootstrap
     assert 'if [[ -e "$target" || -L "$target" ]]' in bootstrap
     assert "Preserving existing credential file" in bootstrap
+    assert "create_config_if_missing" in bootstrap
+    assert '"$example_dir/jatrail.env"' in bootstrap
+    assert '"$example_dir/caddy.env"' in bootstrap
+    assert "/srv/jatrail/deploy/jatrail.env" in bootstrap
+    assert "/srv/jatrail/deploy/caddy.env" in bootstrap
+    assert "Preserving existing runtime configuration" in bootstrap
     assert "git clone" not in bootstrap
     assert "docker compose up" not in bootstrap
 
-    assert "examples/jatrail.env" in installer
-    assert 'if [[ -e "$target_dir/jatrail.env" || -L "$target_dir/jatrail.env" ]]' in installer
-    assert "Preserving existing VPS-local configuration" in installer
+    assert "jatrail.env" not in installer
     assert "caddy.env" not in installer
     assert "image.env" not in installer
     assert '"$target_dir/secrets' not in installer

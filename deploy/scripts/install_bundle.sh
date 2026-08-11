@@ -12,7 +12,7 @@ deploy_user=$2
 deploy_group=$(id -gn "$deploy_user")
 target_dir=/srv/jatrail/deploy
 
-for required_file in compose.yaml Caddyfile examples/jatrail.env mongo-init/01-create-app-user.sh; do
+for required_file in compose.yaml Caddyfile mongo-init/01-create-app-user.sh; do
     if [[ ! -s "$source_dir/$required_file" ]]; then
         echo "Deployment bundle is missing $required_file" >&2
         exit 2
@@ -23,15 +23,6 @@ install -d -m 0750 -o "$deploy_user" -g "$deploy_group" "$target_dir/scripts"
 install -d -m 0750 -o "$deploy_user" -g "$deploy_group" "$target_dir/mongo-init"
 install -m 0644 -o "$deploy_user" -g "$deploy_group" "$source_dir/compose.yaml" "$target_dir/compose.yaml"
 install -m 0644 -o "$deploy_user" -g "$deploy_group" "$source_dir/Caddyfile" "$target_dir/Caddyfile"
-
-if [[ -e "$target_dir/jatrail.env" || -L "$target_dir/jatrail.env" ]]; then
-    echo "Preserving existing VPS-local configuration: $target_dir/jatrail.env"
-else
-    install -m 0600 -o "$deploy_user" -g "$deploy_group" \
-        "$source_dir/examples/jatrail.env" "$target_dir/jatrail.env"
-    echo "Created VPS-local FastAPI configuration: $target_dir/jatrail.env"
-fi
-
 install -m 0644 -o "$deploy_user" -g "$deploy_group" \
     "$source_dir/mongo-init/01-create-app-user.sh" \
     "$target_dir/mongo-init/01-create-app-user.sh"

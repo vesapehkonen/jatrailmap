@@ -30,15 +30,35 @@ jobs:
           printf '%s\n' "$SSH_HOST_KEY" > "$RUNNER_TEMP/ssh/known_hosts"
           chmod 0600 "$RUNNER_TEMP/ssh/key" "$RUNNER_TEMP/ssh/known_hosts"
 
-      - name: Install Docker and create JaTrail directories
+      - name: Create bootstrap bundle
+        run: |
+          tar -czf "$RUNNER_TEMP/jatrail-bootstrap.tgz" \
+            deploy/scripts/bootstrap_vps.sh \
+            deploy/examples/jatrail.env \
+            deploy/examples/caddy.env
+
+      - name: Copy bootstrap bundle
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
+          REMOTE_ARCHIVE: /tmp/jatrail-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}.tgz
+        run: |
+          scp -i "$RUNNER_TEMP/ssh/key" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            "$RUNNER_TEMP/jatrail-bootstrap.tgz" \
+            "$VPS_USER@$VPS_HOST:$REMOTE_ARCHIVE"
+
+      - name: Install Docker and initialize VPS-local files
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          REMOTE_ARCHIVE: /tmp/jatrail-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}.tgz
         run: |
           ssh -i "$RUNNER_TEMP/ssh/key" \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
             "$VPS_USER@$VPS_HOST" \
-            "sudo bash -s -- '$VPS_USER'" \
-            < deploy/scripts/bootstrap_vps.sh
+            "staging_dir=\$(mktemp -d) && tar -xzf '$REMOTE_ARCHIVE' -C \"\$staging_dir\" && sudo bash \"\$staging_dir/deploy/scripts/bootstrap_vps.sh\" '$VPS_USER' \"\$staging_dir/deploy/examples\" && rm -rf \"\$staging_dir\" '$REMOTE_ARCHIVE'"
