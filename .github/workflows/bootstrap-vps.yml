@@ -1,0 +1,44 @@
+name: Bootstrap VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: jatrail-vps-bootstrap
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap Ubuntu VPS
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Check out deployment script
+        uses: actions/checkout@v6
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          install -m 0700 -d "$RUNNER_TEMP/ssh"
+          printf '%s' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/key"
+          printf '%s\n' "$SSH_HOST_KEY" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 0600 "$RUNNER_TEMP/ssh/key" "$RUNNER_TEMP/ssh/known_hosts"
+
+      - name: Install Docker and create JaTrail directories
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i "$RUNNER_TEMP/ssh/key" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            "$VPS_USER@$VPS_HOST" \
+            "sudo bash -s -- '$VPS_USER'" \
+            < deploy/scripts/bootstrap_vps.sh

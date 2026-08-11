@@ -97,15 +97,16 @@ docker run --rm --name jatrail-web \
 The image runs as a non-root user and reports application and MongoDB readiness
 at `/health`. MongoDB is not included in this Phase 1 image.
 
-### Docker Compose stack
+### VPS deployment
 
-The Phase 3 stack in `deploy/compose.yaml` runs Caddy, FastAPI, and an
-authenticated MongoDB with persistent volumes. Caddy is the only service with
-published host ports; FastAPI and MongoDB stay on private Compose networks.
-Caddy creates and renews HTTPS certificates automatically.
+The VPS never contains or clones this source repository. Three manually
+triggered GitHub Actions bootstrap Ubuntu, copy an allowlisted deployment
+bundle, and deploy either the complete stack or only FastAPI. Application code
+arrives exclusively as a prebuilt GHCR image.
 
-Follow [deploy/README.md](deploy/README.md) to create local secret and
-environment files, configure the public hostname, and start the stack.
+Runtime configuration, MongoDB credentials, image state, and backups remain
+under `/srv/jatrail` on the VPS and are never uploaded from GitHub. Follow
+[deploy/README.md](deploy/README.md) for setup, migration, and operation.
 
 ### Container publishing
 
@@ -119,18 +120,9 @@ ghcr.io/vesapehkonen/jatrail:latest
 
 The full commit tag is protected from replacement; `latest` follows the newest
 successful build. Android-only and documentation-only pushes do not start the
-workflow. The workflow does not deploy to the VPS, create Git tags, or delete
-container images.
-
-Deploy a published immutable image manually on the VPS with:
-
-```bash
-./deploy/deploy_image.sh FULL_40_CHARACTER_COMMIT_SHA
-```
-
-The VPS pulls the image from GHCR and never builds FastAPI locally. See
-[deploy/README.md](deploy/README.md) for initial configuration, private-package
-login, health verification, and operational commands.
+workflow. This existing build pipeline does not deploy to the VPS, create Git
+tags, or delete container images. Deployment is performed separately through
+the manual **Deploy JaTrail stack** and **Deploy JaTrail backend** workflows.
 
 ### Create an administrator
 

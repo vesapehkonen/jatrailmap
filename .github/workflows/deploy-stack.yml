@@ -1,0 +1,86 @@
+name: Deploy JaTrail stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "FastAPI image tag: latest or full 40-character commit SHA"
+        required: true
+        default: latest
+        type: string
+
+concurrency:
+  group: jatrail-vps-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Copy and deploy stack
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Validate image tag
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          if ! printf '%s\n' "$IMAGE_TAG" | grep -Eq '^(latest|[0-9a-f]{40})$'; then
+            echo "image_tag must be latest or a full lowercase commit SHA" >&2
+            exit 2
+          fi
+
+      - name: Check out deployment files
+        uses: actions/checkout@v6
+
+      - name: Create allowlisted deployment bundle
+        run: |
+          tar -czf "$RUNNER_TEMP/jatrail-deploy.tgz" \
+            deploy/compose.yaml \
+            deploy/Caddyfile \
+            deploy/mongo-init/01-create-app-user.sh \
+            deploy/scripts/common.sh \
+            deploy/scripts/verify_runtime.sh \
+            deploy/scripts/deploy_stack.sh \
+            deploy/scripts/deploy_backend.sh \
+            deploy/scripts/backup_mongodb.sh \
+            deploy/scripts/install_bundle.sh
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          install -m 0700 -d "$RUNNER_TEMP/ssh"
+          printf '%s' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/key"
+          printf '%s\n' "$SSH_HOST_KEY" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 0600 "$RUNNER_TEMP/ssh/key" "$RUNNER_TEMP/ssh/known_hosts"
+
+      - name: Copy deployment bundle
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          REMOTE_ARCHIVE: /tmp/jatrail-deploy-${{ github.run_id }}-${{ github.run_attempt }}.tgz
+        run: |
+          scp -i "$RUNNER_TEMP/ssh/key" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            "$RUNNER_TEMP/jatrail-deploy.tgz" \
+            "$VPS_USER@$VPS_HOST:$REMOTE_ARCHIVE"
+
+      - name: Install bundle and deploy stack
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          REMOTE_ARCHIVE: /tmp/jatrail-deploy-${{ github.run_id }}-${{ github.run_attempt }}.tgz
+        run: |
+          ssh -i "$RUNNER_TEMP/ssh/key" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            "$VPS_USER@$VPS_HOST" \
+            "staging_dir=\$(mktemp -d) && tar -xzf '$REMOTE_ARCHIVE' -C \"\$staging_dir\" && sudo bash \"\$staging_dir/deploy/scripts/install_bundle.sh\" \"\$staging_dir/deploy\" '$VPS_USER' && rm -rf \"\$staging_dir\" '$REMOTE_ARCHIVE' && /srv/jatrail/deploy/scripts/deploy_stack.sh '$IMAGE_TAG'"

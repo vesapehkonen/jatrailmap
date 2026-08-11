@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 import yaml
@@ -46,7 +47,7 @@ def test_caddy_proxies_to_internal_web_and_limits_request_bodies() -> None:
 
 
 def test_mongodb_backup_is_scoped_and_uses_existing_secrets() -> None:
-    script = (REPOSITORY_ROOT / "deploy" / "backup_mongodb.sh").read_text()
+    script = (REPOSITORY_ROOT / "deploy" / "scripts" / "backup_mongodb.sh").read_text()
 
     assert "mongodump" in script
     assert "--db jatrail" in script
@@ -77,9 +78,9 @@ def test_compose_small_vps_resource_budget() -> None:
 
 
 def test_fastapi_publish_workflow_scope_and_tags() -> None:
-    workflow = (
-        REPOSITORY_ROOT / ".github" / "workflows" / "publish-fastapi.yml"
-    ).read_text()
+    workflow_path = REPOSITORY_ROOT / ".github" / "workflows" / "publish-fastapi.yml"
+    workflow_bytes = workflow_path.read_bytes()
+    workflow = workflow_bytes.decode()
 
     assert 'branches:' in workflow
     assert '- main' in workflow
@@ -94,32 +95,43 @@ def test_fastapi_publish_workflow_scope_and_tags() -> None:
     assert "imagetools inspect" in workflow
     assert "docker/build-push-action@v6" in workflow
     assert "retention" not in workflow.lower()
+    assert hashlib.sha256(workflow_bytes).hexdigest() == (
+        "7d54a9285b5426e6eb9e6ee13857efda8f3fe5b34028edef2798cf302b3bf804"
+    )
 
 
-def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
+def test_stack_and_backend_deployments_have_separate_scope() -> None:
     compose = yaml.safe_load((REPOSITORY_ROOT / "deploy" / "compose.yaml").read_text())
     web = compose["services"]["web"]
-    script = (REPOSITORY_ROOT / "deploy" / "deploy_image.sh").read_text()
+    scripts = REPOSITORY_ROOT / "deploy" / "scripts"
+    stack_script = (scripts / "deploy_stack.sh").read_text()
+    backend_script = (scripts / "deploy_backend.sh").read_text()
+    common_script = (scripts / "common.sh").read_text()
 
     assert web["image"].startswith("ghcr.io/vesapehkonen/jatrail:")
     assert "JATRAIL_IMAGE_VERSION" in web["image"]
     assert "build" not in web
-    assert "latest|[0-9a-f]{40}" in script
-    assert "pull mongo caddy" in script
-    assert "pull web" in script
-    assert "Checking MongoDB once" in script
-    assert script.count("mongosh --quiet") == 1
-    assert "01-create-app-user.sh" in script
-    assert "--wait web caddy" in script
-    assert "--no-build --pull never --wait" in script
-    assert 'curl --fail' in script
-    assert "health_attempts=12" in script
-    assert "health_retry_seconds=5" in script
-    assert "--max-time 5" in script
-    assert "docker logs --tail=200 jatrail-caddy-1" in script
-    assert "secrets/mongo_app_password" in script
-    assert "docker image" not in script
-    assert "rollback" in script.lower()
+    assert "pull mongo caddy web" in stack_script
+    assert "Checking MongoDB once" in stack_script
+    assert stack_script.count("mongosh --quiet") == 1
+    assert "mongod_wait_attempts=30" in stack_script
+    assert '"mongod"' in stack_script
+    assert "01-create-app-user.sh" in stack_script
+    assert "--wait web caddy" in stack_script
+
+    assert 'docker pull "ghcr.io/vesapehkonen/jatrail:$image_tag"' in backend_script
+    assert "compose pull" not in backend_script
+    assert "--no-deps" in backend_script
+    assert "mongo" not in backend_script.lower()
+    assert "caddy" not in backend_script.lower()
+    assert "compose up" in backend_script
+
+    assert "latest|[0-9a-f]{40}" in common_script
+    assert 'curl --fail' in common_script
+    assert "health_attempts=12" in common_script
+    assert "health_retry_seconds=5" in common_script
+    assert "--max-time 5" in common_script
+    assert "docker logs --tail=200 jatrail-caddy-1" in common_script
 
     init_script = (
         REPOSITORY_ROOT / "deploy" / "mongo-init" / "01-create-app-user.sh"
@@ -127,3 +139,51 @@ def test_manual_deployment_pulls_an_immutable_ghcr_image() -> None:
     assert "db.updateUser" in init_script
     assert "/run/secrets/mongo_root_username" in init_script
     assert "/run/secrets/mongo_root_password" in init_script
+
+
+def test_manual_workflows_do_not_clone_source_onto_vps() -> None:
+    workflows = REPOSITORY_ROOT / ".github" / "workflows"
+    bootstrap = (workflows / "bootstrap-vps.yml").read_text()
+    stack = (workflows / "deploy-stack.yml").read_text()
+    backend = (workflows / "deploy-backend.yml").read_text()
+
+    for workflow in (bootstrap, stack, backend):
+        assert "workflow_dispatch" in workflow
+        assert "environment: production" in workflow
+        assert "VPS_SSH_PRIVATE_KEY" in workflow
+        assert "VPS_SSH_HOST_KEY" in workflow
+        assert "git clone" not in workflow
+        assert "git pull" not in workflow
+
+    assert "bootstrap_vps.sh" in bootstrap
+    assert "compose.yaml" not in bootstrap
+
+    assert "Create allowlisted deployment bundle" in stack
+    assert "deploy/compose.yaml" in stack
+    assert "deploy/Caddyfile" in stack
+    assert "deploy/scripts/install_bundle.sh" in stack
+    assert "deploy/examples" not in stack
+    assert "fastapi/" not in stack
+    assert "android/" not in stack
+
+    assert "actions/checkout" not in backend
+    assert "scp " not in backend
+    assert "/srv/jatrail/deploy/scripts/deploy_backend.sh" in backend
+
+
+def test_bootstrap_and_bundle_installer_preserve_runtime_secrets() -> None:
+    scripts = REPOSITORY_ROOT / "deploy" / "scripts"
+    bootstrap = (scripts / "bootstrap_vps.sh").read_text()
+    installer = (scripts / "install_bundle.sh").read_text()
+
+    assert "docker-ce" in bootstrap
+    assert "docker-compose-plugin" in bootstrap
+    assert "/srv/jatrail/deploy/secrets" in bootstrap
+    assert "git clone" not in bootstrap
+    assert "docker compose up" not in bootstrap
+
+    assert "jatrail.env" not in installer
+    assert "caddy.env" not in installer
+    assert "image.env" not in installer
+    assert '"$target_dir/secrets' not in installer
+    assert "deploy_image.sh" in installer

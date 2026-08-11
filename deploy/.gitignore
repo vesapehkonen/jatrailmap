@@ -2,6 +2,7 @@ jatrail.env
 caddy.env
 image.env
 .deployed-image
+!examples/*.env
 secrets/
 backups/
 *.archive
