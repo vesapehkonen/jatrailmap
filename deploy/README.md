@@ -21,7 +21,7 @@ GitHub repository and Actions
   │  ├─ Caddyfile                   managed by Deploy Stack
   │  ├─ mongo-init/                 managed by Deploy Stack
   │  ├─ scripts/                    managed by Deploy Stack
-  │  ├─ jatrail.env                 created manually on VPS
+  │  ├─ jatrail.env                 created by Deploy Stack if missing
   │  ├─ caddy.env                   created manually on VPS
   │  ├─ image.env                   managed deployment state
   │  ├─ .deployed-image             managed deployment state
@@ -91,16 +91,20 @@ created directly on the VPS and are not returned to or stored by GitHub.
 
 ## 2. Create runtime configuration manually
 
-Copy the example contents from this repository into new VPS-local files:
+Create the Caddy environment file manually from the example contents before
+running Deploy Stack:
 
 ```text
-deploy/examples/jatrail.env  -> /srv/jatrail/deploy/jatrail.env
 deploy/examples/caddy.env    -> /srv/jatrail/deploy/caddy.env
 ```
 
-Set the real hostname in both files and keep secure cookies enabled. Bootstrap
-has already generated MongoDB credentials. Inspect their presence without
-printing their contents:
+Deploy Stack creates `jatrail.env` from `deploy/examples/jatrail.env` when it is
+missing and preserves it thereafter. Its defaults use `jatrail.com`, secure
+cookies, and the documented account/upload quotas. If deploying another domain,
+create or edit `jatrail.env` before rerunning the stack workflow.
+
+Bootstrap has already generated MongoDB credentials. Inspect their presence
+without printing their contents:
 
 ```bash
 find /srv/jatrail/deploy/secrets -maxdepth 1 -type f \
@@ -135,6 +139,7 @@ from this explicit allowlist:
 ```text
 deploy/compose.yaml
 deploy/Caddyfile
+deploy/examples/jatrail.env
 deploy/mongo-init/01-create-app-user.sh
 deploy/scripts/common.sh
 deploy/scripts/verify_runtime.sh
@@ -146,8 +151,10 @@ deploy/scripts/install_bundle.sh
 
 It copies the archive to `/tmp`, installs only managed files under
 `/srv/jatrail/deploy`, removes the temporary archive, and runs `deploy_stack.sh`.
-Runtime configuration, secrets, image state, backups, and named volumes are not
-overwritten.
+If `/srv/jatrail/deploy/jatrail.env` does not exist, the installer creates it
+from the bundled production defaults for `jatrail.com`. An existing file or
+symlink is always preserved. Caddy configuration, secrets, image state,
+backups, and named volumes are not overwritten.
 
 Stack deployment pulls MongoDB, Caddy, and the selected FastAPI image; starts
 MongoDB; waits with lightweight process inspection for first-run initialization

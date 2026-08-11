@@ -161,8 +161,10 @@ def test_manual_workflows_do_not_clone_source_onto_vps() -> None:
     assert "Create allowlisted deployment bundle" in stack
     assert "deploy/compose.yaml" in stack
     assert "deploy/Caddyfile" in stack
+    assert "deploy/examples/jatrail.env" in stack
     assert "deploy/scripts/install_bundle.sh" in stack
-    assert "deploy/examples" not in stack
+    assert "deploy/examples/caddy.env" not in stack
+    assert "deploy/examples/image.env" not in stack
     assert "fastapi/" not in stack
     assert "android/" not in stack
 
@@ -190,7 +192,9 @@ def test_bootstrap_and_bundle_installer_preserve_runtime_secrets() -> None:
     assert "git clone" not in bootstrap
     assert "docker compose up" not in bootstrap
 
-    assert "jatrail.env" not in installer
+    assert "examples/jatrail.env" in installer
+    assert 'if [[ -e "$target_dir/jatrail.env" || -L "$target_dir/jatrail.env" ]]' in installer
+    assert "Preserving existing VPS-local configuration" in installer
     assert "caddy.env" not in installer
     assert "image.env" not in installer
     assert '"$target_dir/secrets' not in installer
