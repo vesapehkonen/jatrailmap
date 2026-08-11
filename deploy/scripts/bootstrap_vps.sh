@@ -58,7 +58,36 @@ install -d -m 0750 -o "$deploy_user" -g "$deploy_group" /srv/jatrail/deploy/scri
 install -d -m 0750 -o "$deploy_user" -g "$deploy_group" /srv/jatrail/deploy/mongo-init
 install -d -m 0700 -o "$deploy_user" -g "$deploy_group" /srv/jatrail/backups
 
+create_secret_if_missing() {
+    local target=$1
+    local value=$2
+    if [[ -e "$target" || -L "$target" ]]; then
+        echo "Preserving existing credential file: $target"
+        return
+    fi
+
+    umask 022
+    printf '%s' "$value" > "$target"
+    chown "$deploy_user:$deploy_group" "$target"
+    chmod 0644 "$target"
+    echo "Created credential file: $target"
+}
+
+create_secret_if_missing \
+    /srv/jatrail/deploy/secrets/mongo_root_username \
+    jatrail-admin
+create_secret_if_missing \
+    /srv/jatrail/deploy/secrets/mongo_root_password \
+    "$(openssl rand -base64 48)"
+create_secret_if_missing \
+    /srv/jatrail/deploy/secrets/mongo_app_username \
+    jatrail-app
+create_secret_if_missing \
+    /srv/jatrail/deploy/secrets/mongo_app_password \
+    "$(openssl rand -base64 48)"
+
 docker --version
 docker compose version
 echo "Bootstrap complete. No application containers were deployed."
+echo "MongoDB credential files exist locally on the VPS and were not sent to GitHub."
 echo "Open a new SSH session before running Docker as $deploy_user."

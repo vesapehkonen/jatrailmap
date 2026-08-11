@@ -179,6 +179,14 @@ def test_bootstrap_and_bundle_installer_preserve_runtime_secrets() -> None:
     assert "docker-ce" in bootstrap
     assert "docker-compose-plugin" in bootstrap
     assert "/srv/jatrail/deploy/secrets" in bootstrap
+    assert "create_secret_if_missing" in bootstrap
+    assert "openssl rand -base64 48" in bootstrap
+    assert "mongo_root_username" in bootstrap
+    assert "mongo_root_password" in bootstrap
+    assert "mongo_app_username" in bootstrap
+    assert "mongo_app_password" in bootstrap
+    assert 'if [[ -e "$target" || -L "$target" ]]' in bootstrap
+    assert "Preserving existing credential file" in bootstrap
     assert "git clone" not in bootstrap
     assert "docker compose up" not in bootstrap
 
