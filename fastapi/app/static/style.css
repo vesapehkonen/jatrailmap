@@ -179,7 +179,7 @@ dd { margin: 0; color: var(--stone-700); }
 .photo-popup-content { width: 100%; }
 .map-photo { display: block; width: 100%; max-height: 20rem; margin-top: .5rem; object-fit: cover; border-radius: var(--radius-sm); }
 .photo-thumbnail-marker { overflow: hidden; background: var(--surface); border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 9px #0008; transition: transform var(--transition), box-shadow var(--transition); }
-.photo-thumbnail-marker:hover { z-index: 500 !important; border-color: var(--forest-600); box-shadow: 0 4px 16px #0009; }
+.photo-thumbnail-marker:hover { border-color: var(--forest-600); box-shadow: 0 4px 16px #0009; }
 .photo-thumbnail-marker.is-selected { z-index: 550 !important; border-color: var(--amber); box-shadow: 0 0 0 4px #e7a3214d, 0 5px 18px #0008; transform: scale(1.16); }
 .photo-thumbnail-marker.is-main-photo { border-color: var(--amber); box-shadow: 0 0 0 3px #e7a32166, 0 3px 12px #0008; }
 .photo-thumbnail-marker.is-spiderfied { border-color: var(--forest-600); box-shadow: 0 3px 12px #0008; }

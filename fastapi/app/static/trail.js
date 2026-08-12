@@ -241,7 +241,7 @@ if (container && window.L) {
 
   function spiderfyPhotos(selected) {
     const nearby = nearbyPhotos(selected);
-    if (nearby.length < 2 || spiderfied.includes(selected)) return;
+    if (nearby.length < 2 || spiderfied.includes(selected)) return false;
     collapsePhotos();
     const center = map.latLngToLayerPoint(selected.original);
     nearby.forEach((record, index) => {
@@ -267,6 +267,7 @@ if (container && window.L) {
       }).addTo(spiderLegs);
     });
     spiderfied = nearby;
+    return true;
   }
 
   map.on("click zoomstart dragstart", collapsePhotos);
@@ -323,12 +324,14 @@ if (container && window.L) {
         const marker = L.marker(point, {
           icon: photoThumbnailIcon(picture.imageid),
           title: picture.picturename || "Trail photo",
+          bubblingMouseEvents: false,
         }).addTo(map);
         const photoPopup = L.popup({ minWidth: 320, maxWidth: 360 }).setContent(popupContent);
         const record = { marker, original: L.latLng(point) };
         photoMarkers.push(record);
-        marker.on("click", () => {
-          spiderfyPhotos(record);
+        marker.on("click", (event) => {
+          if (event.originalEvent) L.DomEvent.stopPropagation(event.originalEvent);
+          if (spiderfyPhotos(record)) return;
           document.querySelectorAll(".photo-thumbnail-marker.is-selected").forEach(
             (element) => element.classList.remove("is-selected"),
           );
