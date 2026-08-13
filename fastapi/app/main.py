@@ -18,6 +18,7 @@ from .routes.accounts import router as accounts_router
 from .routes.groups import router as groups_router
 from .routes.trails import router as trails_router
 from .routes.admin import router as admin_router
+from .routes.pages import router as pages_router
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -115,6 +116,7 @@ def create_app(settings: Settings | None = None, database: Database[Any] | None 
     application.include_router(groups_router)
     application.include_router(trails_router)
     application.include_router(admin_router)
+    application.include_router(pages_router)
     return application
 
 

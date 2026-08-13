@@ -20,3 +20,7 @@ def test_versioned_upload_and_track_routes_follow_api_convention():
 
 def test_root_favicon_fallback_is_registered():
     assert ("/favicon.ico", "GET") in registered_routes()
+
+
+def test_privacy_policy_is_a_public_html_route():
+    assert ("/privacy", "GET") in registered_routes()
