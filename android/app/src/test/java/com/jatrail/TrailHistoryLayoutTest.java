@@ -62,6 +62,7 @@ public class TrailHistoryLayoutTest {
         View settings = themedInflater().inflate(R.layout.activity_recording_settings, null);
 
         assertNotNull(settings.findViewById(R.id.edit_location_interval));
+        assertNotNull(settings.findViewById(R.id.edit_unit_system));
         assertNotNull(settings.findViewById(R.id.switch_record_stationary));
         assertNotNull(settings.findViewById(R.id.edit_map_style));
         assertNotNull(settings.findViewById(R.id.text_map_style_description));

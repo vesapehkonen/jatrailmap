@@ -310,6 +310,7 @@ public class MainActivity extends AppCompatActivity {
                         + " savedInstance=" + (savedInstanceState != null));
         mapView = findViewById(R.id.map_view);
         mapView.getMapScaleBar().setVisible(true);
+        UnitSystemStore.configureScaleBar(this, mapView.getMapScaleBar());
         mapView.setBuiltInZoomControls(false);
         findViewById(R.id.button_select_map).setOnClickListener(view -> offlineMapsLauncher.launch(
                 new Intent(this, OfflineMapsActivity.class)));
@@ -519,6 +520,7 @@ public class MainActivity extends AppCompatActivity {
                 "status=" + recordingStateStore.getSnapshot().status.name());
         mainActivityResumed = true;
         lastCoverageCheckPointId = 0;
+        UnitSystemStore.configureScaleBar(this, mapView.getMapScaleBar());
         refreshUi();
         refreshMapRoute();
     }
@@ -774,13 +776,16 @@ public class MainActivity extends AppCompatActivity {
             gpsStatus.setText(R.string.gps_fix);
         } else if (liveGpsAccuracyMeters <= 10) {
             gpsStatus.setText(getString(
-                    R.string.gps_accuracy_strong, liveGpsAccuracyMeters));
+                    R.string.gps_accuracy_strong,
+                    DistanceFormatter.formatAccuracy(this, liveGpsAccuracyMeters)));
         } else if (liveGpsAccuracyMeters <= 30) {
             gpsStatus.setText(getString(
-                    R.string.gps_accuracy_good, liveGpsAccuracyMeters));
+                    R.string.gps_accuracy_good,
+                    DistanceFormatter.formatAccuracy(this, liveGpsAccuracyMeters)));
         } else {
             gpsStatus.setText(getString(
-                    R.string.gps_accuracy_weak, liveGpsAccuracyMeters));
+                    R.string.gps_accuracy_weak,
+                    DistanceFormatter.formatAccuracy(this, liveGpsAccuracyMeters)));
         }
     }
 
@@ -789,12 +794,7 @@ public class MainActivity extends AppCompatActivity {
         if (distance == null) {
             return;
         }
-        if (routeDistanceMeters < 1000) {
-            distance.setText(getString(R.string.trail_distance_meters, routeDistanceMeters));
-        } else {
-            distance.setText(getString(
-                    R.string.trail_distance_kilometers, routeDistanceMeters / 1000));
-        }
+        distance.setText(DistanceFormatter.format(this, routeDistanceMeters));
     }
 
     private void renderRecordingSummary(RecordingStateStore.Snapshot snapshot) {

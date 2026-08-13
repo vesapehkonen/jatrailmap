@@ -66,6 +66,7 @@ public final class TrailDetailActivity extends AppCompatActivity {
         recordingStateStore = new RecordingStateStore(this);
         mapView = findViewById(R.id.trail_detail_map);
         mapView.getMapScaleBar().setVisible(true);
+        UnitSystemStore.configureScaleBar(this, mapView.getMapScaleBar());
         mapView.setBuiltInZoomControls(false);
         findViewById(R.id.button_trail_rename).setOnClickListener(view -> renameTrail());
         findViewById(R.id.button_trail_delete).setOnClickListener(view -> confirmDelete());
@@ -125,7 +126,7 @@ public final class TrailDetailActivity extends AppCompatActivity {
                 R.string.trail_summary_stats,
                 points.size(),
                 TrailHistoryActivity.displayDuration(duration),
-                points.isEmpty() ? getString(R.string.trail_distance_meters, 0d)
+                points.isEmpty() ? DistanceFormatter.format(this, 0d)
                         : displayDistance(TrailRepository.calculateDistanceMeters(points))));
         TextView state = findViewById(R.id.trail_detail_upload_state);
         state.setText(uploadStateLabel(trail.uploadState));
@@ -286,9 +287,7 @@ public final class TrailDetailActivity extends AppCompatActivity {
     }
 
     private String displayDistance(double meters) {
-        return meters < 1000
-                ? getString(R.string.trail_distance_meters, meters)
-                : getString(R.string.trail_distance_kilometers, meters / 1000);
+        return DistanceFormatter.format(this, meters);
     }
 
     private int uploadStateLabel(String state) {

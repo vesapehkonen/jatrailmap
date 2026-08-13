@@ -95,9 +95,7 @@ public final class TrailHistoryActivity extends AppCompatActivity {
     }
 
     String displayDistance(double distanceMeters) {
-        return distanceMeters < 1000
-                ? getString(R.string.trail_distance_meters, distanceMeters)
-                : getString(R.string.trail_distance_kilometers, distanceMeters / 1000);
+        return DistanceFormatter.format(this, distanceMeters);
     }
 
     int uploadStateLabel(String state) {

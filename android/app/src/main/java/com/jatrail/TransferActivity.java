@@ -108,7 +108,7 @@ public class TransferActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.upload_no_locations, Toast.LENGTH_LONG).show();
             return;
         }
-        saveForm(url, username, password, trailName, locationName, description);
+        saveForm(url, username, trailName, locationName, description);
 
         Data input = new Data.Builder()
                 .putString(TrailUploadWorker.KEY_URL, url)
@@ -262,22 +262,18 @@ public class TransferActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void saveForm(String url, String username, String password, String trailName,
+    private void saveForm(String url, String username, String trailName,
                           String locationName, String description) {
         JSONObject json = new JSONObject();
         try {
             json.put("url", url);
             json.put("username", username);
-            json.put("password", password);
             json.put("trailname", trailName);
             json.put("locationname", locationName);
             json.put("description", description);
             java.io.File file = new java.io.File(
                     getExternalFilesDir(null), getString(R.string.form_state_filename));
-            try (OutputStreamWriter writer = new OutputStreamWriter(
-                    new FileOutputStream(file, false), StandardCharsets.UTF_8)) {
-                writer.write(json.toString());
-            }
+            writeForm(file, json);
         } catch (Exception exception) {
             Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
         }
@@ -289,27 +285,39 @@ public class TransferActivity extends AppCompatActivity {
         if (!file.exists()) {
             return;
         }
-        try (InputStreamReader reader = new InputStreamReader(
-                new FileInputStream(file), StandardCharsets.UTF_8)) {
+        try {
             StringBuilder text = new StringBuilder();
-            char[] buffer = new char[256];
-            int count;
-            while ((count = reader.read(buffer)) != -1) {
-                text.append(buffer, 0, count);
+            try (InputStreamReader reader = new InputStreamReader(
+                    new FileInputStream(file), StandardCharsets.UTF_8)) {
+                char[] buffer = new char[256];
+                int count;
+                while ((count = reader.read(buffer)) != -1) {
+                    text.append(buffer, 0, count);
+                }
             }
             JSONObject json = new JSONObject(text.toString());
+            if (json.has("password")) {
+                json.remove("password");
+                writeForm(file, json);
+            }
             String savedUrl = json.optString("url");
             if ("https://jatrailmap.com/addtrail".equals(savedUrl)) {
                 savedUrl = getString(R.string.default_server_url);
             }
             setText(R.id.edit_server_url, savedUrl);
             setText(R.id.edit_username, json.optString("username"));
-            setText(R.id.edit_password, json.optString("password"));
             setText(R.id.edit_trailname, json.optString("trailname"));
             setText(R.id.edit_locationname, json.optString("locationname"));
             setText(R.id.edit_description, json.optString("description"));
         } catch (Exception exception) {
             Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void writeForm(java.io.File file, JSONObject json) throws java.io.IOException {
+        try (OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(file, false), StandardCharsets.UTF_8)) {
+            writer.write(json.toString());
         }
     }
 

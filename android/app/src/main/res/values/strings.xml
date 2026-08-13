@@ -13,6 +13,8 @@
     <string name="trail_summary_stats">%1$d GPS points · %2$s · %3$s</string>
     <string name="trail_distance_meters">%1$.0f m</string>
     <string name="trail_distance_kilometers">%1$.2f km</string>
+    <string name="trail_distance_feet">%1$.0f ft</string>
+    <string name="trail_distance_miles">%1$.2f mi</string>
     <string name="trail_upload_local">Not uploaded</string>
     <string name="trail_upload_queued">Upload queued</string>
     <string name="trail_upload_uploading">Uploading</string>
@@ -129,9 +131,9 @@
     <string name="gps_inactive">GPS inactive</string>
     <string name="gps_searching">Finding GPS…</string>
     <string name="gps_fix">GPS fix</string>
-    <string name="gps_accuracy_strong">GPS strong · ±%1$.0f m</string>
-    <string name="gps_accuracy_good">GPS good · ±%1$.0f m</string>
-    <string name="gps_accuracy_weak">GPS weak · ±%1$.0f m</string>
+    <string name="gps_accuracy_strong">GPS strong · ±%1$s</string>
+    <string name="gps_accuracy_good">GPS good · ±%1$s</string>
+    <string name="gps_accuracy_weak">GPS weak · ±%1$s</string>
     <string name="waiting_for_first_gps_point">Waiting for the first GPS point…</string>
     <string name="last_gps_point_now">Last GPS point: just now</string>
     <string name="last_gps_point_seconds">Last GPS point: %1$d sec ago</string>
@@ -142,6 +144,9 @@
     <string name="recording_settings_title">Settings</string>
     <string name="recording_section_title">Recording</string>
     <string name="recording_settings_description">These settings apply to every trail. Changes take effect the next time recording starts or resumes.</string>
+    <string name="units_label">Units</string>
+    <string name="units_metric">Metric (meters and kilometers)</string>
+    <string name="units_imperial">Imperial (feet and miles)</string>
     <string name="location_interval_label">Recording interval</string>
     <string name="location_interval_description">Minimum time between saved GPS locations.</string>
     <string name="minimum_movement_label">Minimum movement</string>
@@ -152,6 +157,7 @@
     <string name="record_stationary_description">Save an eligible GPS location at each interval even when the phone has moved less than the minimum distance.</string>
     <string name="seconds_suffix">seconds</string>
     <string name="meters_suffix">meters</string>
+    <string name="feet_suffix">feet</string>
     <string name="save_settings">Save</string>
     <string name="recording_settings_saved">Settings saved.</string>
     <string name="recording_settings_invalid">Correct the highlighted recording settings.</string>
