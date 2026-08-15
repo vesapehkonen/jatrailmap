@@ -21,3 +21,15 @@ def privacy_page(
         "privacy.html",
         {"authenticated": user_id is not None},
     )
+
+
+@router.get("/delete-data", response_class=HTMLResponse, include_in_schema=False)
+def delete_data_page(
+    request: Request,
+    user_id: ObjectId | None = Depends(optional_user_id),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "delete_data.html",
+        {"authenticated": user_id is not None},
+    )

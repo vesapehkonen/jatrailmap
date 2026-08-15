@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Delete your data · JaTrail{% endblock %}
+{% block content %}
+<article class="policy-page">
+  <header>
+    <p class="eyebrow">Data controls</p>
+    <h1>Delete your JaTrail data</h1>
+    <p class="policy-updated">You can delete individual trails or permanently remove all of your data.</p>
+  </header>
+
+  <h2>Delete data from the Android app</h2>
+  <ol>
+    <li>Open <strong>Trail history</strong>.</li>
+    <li>Select the trail you want to remove.</li>
+    <li>Tap the red <strong>Delete</strong> button and confirm.</li>
+  </ol>
+  <p>If a trail is currently recording, stop or finish the recording first.</p>
+  <p>To remove all JaTrail data stored on your phone, open Android <strong>Settings → Apps → JaTrail → Storage &amp; cache → Clear storage</strong>. You can also uninstall JaTrail. Android menu names may vary by device.</p>
+  <p><strong>Deleting local Android data does not delete trails already uploaded to a server.</strong></p>
+
+  <h2>Delete a trail from the JaTrail website</h2>
+  <ol>
+    <li>Sign in and open the trail.</li>
+    <li>Select <strong>Edit trail</strong>.</li>
+    <li>Select <strong>Delete trail</strong> and confirm.</li>
+  </ol>
+  <p>This permanently deletes the trail, its GPS points, and its photos from that server.</p>
+
+  <h2>Delete your server account and all data</h2>
+  <ol>
+    <li>Sign in and open <a href="/account">Account</a>.</li>
+    <li>Find <strong>Delete account</strong>.</li>
+    <li>Enter your current password and select <strong>Delete account and all trails</strong>.</li>
+    <li>Confirm the deletion.</li>
+  </ol>
+  <p>This permanently removes your account and its trails, GPS points, photos, and group data. This action cannot be undone.</p>
+
+  <h2>Need help?</h2>
+  <p>For the official JaTrail service, contact <a href="mailto:support@jatrail.com">support@jatrail.com</a>. If you use another or self-hosted JaTrail server, contact that server's operator.</p>
+</article>
+{% endblock %}

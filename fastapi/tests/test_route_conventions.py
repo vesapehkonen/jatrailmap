@@ -24,3 +24,7 @@ def test_root_favicon_fallback_is_registered():
 
 def test_privacy_policy_is_a_public_html_route():
     assert ("/privacy", "GET") in registered_routes()
+
+
+def test_data_deletion_instructions_are_a_public_html_route():
+    assert ("/delete-data", "GET") in registered_routes()
