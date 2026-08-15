@@ -24,11 +24,15 @@ public class TransferLayoutTest {
     @Test
     public void uploadFormInflatesWithHeaderAndMaterialFields() {
         View form = inflater().inflate(R.layout.activity_transfer, null);
+        EditText serverUrl = form.findViewById(R.id.edit_server_url);
 
         assertNotNull(form.findViewById(R.id.text_upload_header));
         assertNotNull(form.findViewById(R.id.input_trail_name));
         assertNotNull(form.findViewById(R.id.input_server_url));
+        assertNotNull(form.findViewById(R.id.text_http_warning));
         assertNotNull(form.findViewById(R.id.button_send));
+        assertEquals("https://jatrail.com/api/v1/trails",
+                serverUrl.getText().toString());
     }
 
     @Test

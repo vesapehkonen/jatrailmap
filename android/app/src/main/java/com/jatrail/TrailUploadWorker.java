@@ -76,6 +76,8 @@ public final class TrailUploadWorker extends Worker {
             PreparedUpload upload = buildRequest(trailId);
             OkHttpClient httpClient = new OkHttpClient.Builder()
                     .callTimeout(CALL_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+                    .followRedirects(false)
+                    .followSslRedirects(false)
                     .build();
             TrailApi api = new Retrofit.Builder()
                     .baseUrl("https://localhost/")

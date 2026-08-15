@@ -3,10 +3,13 @@ package com.jatrail;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -57,6 +60,7 @@ public class TransferActivity extends AppCompatActivity {
         pointCount = getIntent().getIntExtra(EXTRA_POINT_COUNT, 0);
         trailRepository = new TrailRepository(this);
         fillForm();
+        configureServerSecurityWarning();
         String selectedTrailName = getIntent().getStringExtra(EXTRA_TRAIL_NAME);
         if (selectedTrailName != null && !selectedTrailName.trim().isEmpty()) {
             setText(R.id.edit_trailname, selectedTrailName);
@@ -91,6 +95,10 @@ public class TransferActivity extends AppCompatActivity {
     }
 
     private void enqueueUpload() {
+        enqueueUpload(false);
+    }
+
+    private void enqueueUpload(boolean cleartextConfirmed) {
         String url = text(R.id.edit_server_url);
         String username = text(R.id.edit_username);
         String password = text(R.id.edit_password);
@@ -106,6 +114,17 @@ public class TransferActivity extends AppCompatActivity {
             DiagnosticLog.event(this, "UPLOAD", "QUEUE_REJECTED",
                     "reason=no_points");
             Toast.makeText(this, R.string.upload_no_locations, Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (TrailServerUrl.isAllowedCleartext(url) && !cleartextConfirmed) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.http_upload_confirmation_title)
+                    .setMessage(R.string.http_upload_confirmation_message)
+                    .setPositiveButton(R.string.upload_anyway,
+                            (dialog, which) -> enqueueUpload(true))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
             return;
         }
         saveForm(url, username, trailName, locationName, description);
@@ -189,7 +208,9 @@ public class TransferActivity extends AppCompatActivity {
             firstInvalid = findViewById(R.id.edit_trailname);
         }
         if (!TrailServerUrl.isValid(url)) {
-            serverInput.setError(getString(R.string.invalid_server_url));
+            serverInput.setError(getString(TrailServerUrl.isHttp(url)
+                    ? R.string.http_server_not_local
+                    : R.string.invalid_server_url));
             if (firstInvalid == null) {
                 firstInvalid = findViewById(R.id.edit_server_url);
             }
@@ -212,6 +233,38 @@ public class TransferActivity extends AppCompatActivity {
             return false;
         }
         return true;
+    }
+
+    private void configureServerSecurityWarning() {
+        EditText serverUrl = findViewById(R.id.edit_server_url);
+        renderServerSecurityWarning(serverUrl.getText().toString());
+        serverUrl.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence text, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence text, int start, int before, int count) {
+                renderServerSecurityWarning(text.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+            }
+        });
+    }
+
+    private void renderServerSecurityWarning(String url) {
+        TextView warning = findViewById(R.id.text_http_warning);
+        String normalized = url.trim().toLowerCase(java.util.Locale.US);
+        if (!normalized.startsWith("http://")) {
+            warning.setVisibility(View.GONE);
+            return;
+        }
+        warning.setText(TrailServerUrl.isAllowedCleartext(url)
+                ? R.string.http_upload_warning
+                : R.string.http_server_not_local);
+        warning.setVisibility(View.VISIBLE);
     }
 
     private void renderHeader() {
@@ -301,7 +354,8 @@ public class TransferActivity extends AppCompatActivity {
                 writeForm(file, json);
             }
             String savedUrl = json.optString("url");
-            if ("https://jatrailmap.com/addtrail".equals(savedUrl)) {
+            if ("https://jatrailmap.com/addtrail".equals(savedUrl)
+                    || "https://jatrailmap.com/api/v1/trails".equals(savedUrl)) {
                 savedUrl = getString(R.string.default_server_url);
             }
             setText(R.id.edit_server_url, savedUrl);

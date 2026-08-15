@@ -138,6 +138,17 @@
                 android:text="@string/default_server_url" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <TextView
+            android:id="@+id/text_http_warning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="#FFF0F0"
+            android:padding="10dp"
+            android:textColor="?attr/colorError"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/input_username"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
