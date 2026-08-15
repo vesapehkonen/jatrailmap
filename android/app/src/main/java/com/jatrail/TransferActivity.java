@@ -237,6 +237,12 @@ public class TransferActivity extends AppCompatActivity {
 
     private void configureServerSecurityWarning() {
         EditText serverUrl = findViewById(R.id.edit_server_url);
+        findViewById(R.id.button_use_official_server).setOnClickListener(view -> {
+            serverUrl.setText(R.string.default_server_url);
+            setText(R.id.edit_username, "");
+            setText(R.id.edit_password, "");
+            ((TextInputLayout) findViewById(R.id.input_server_url)).setError(null);
+        });
         renderServerSecurityWarning(serverUrl.getText().toString());
         serverUrl.addTextChangedListener(new TextWatcher() {
             @Override
@@ -256,7 +262,11 @@ public class TransferActivity extends AppCompatActivity {
 
     private void renderServerSecurityWarning(String url) {
         TextView warning = findViewById(R.id.text_http_warning);
-        String normalized = url.trim().toLowerCase(java.util.Locale.US);
+        String trimmed = url.trim();
+        String normalized = trimmed.toLowerCase(java.util.Locale.US);
+        findViewById(R.id.button_use_official_server).setVisibility(
+                getString(R.string.default_server_url).equals(trimmed)
+                        ? View.GONE : View.VISIBLE);
         if (!normalized.startsWith("http://")) {
             warning.setVisibility(View.GONE);
             return;

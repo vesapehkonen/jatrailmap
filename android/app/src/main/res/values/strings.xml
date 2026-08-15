@@ -64,6 +64,7 @@
     <string name="points">GPS points: </string>
     <string name="edit_server_url">Server URL</string>
     <string name="default_server_url">https://jatrail.com/api/v1/trails</string>
+    <string name="use_official_server">Use official JaTrail server</string>
     <string name="form_state_filename">form_state.json</string>
     <string name="location_permission_denied">Location permission is required to record a trail.</string>
     <string name="camera_permission_denied">Camera permission is required to take a trail photo.</string>

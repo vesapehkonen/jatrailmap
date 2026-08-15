@@ -149,6 +149,16 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_use_official_server"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:layout_marginTop="2dp"
+            android:text="@string/use_official_server"
+            android:visibility="gone" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/input_username"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"

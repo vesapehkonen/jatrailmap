@@ -30,6 +30,7 @@ public class TransferLayoutTest {
         assertNotNull(form.findViewById(R.id.input_trail_name));
         assertNotNull(form.findViewById(R.id.input_server_url));
         assertNotNull(form.findViewById(R.id.text_http_warning));
+        assertNotNull(form.findViewById(R.id.button_use_official_server));
         assertNotNull(form.findViewById(R.id.button_send));
         assertEquals("https://jatrail.com/api/v1/trails",
                 serverUrl.getText().toString());
