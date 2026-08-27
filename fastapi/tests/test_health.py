@@ -1,7 +1,9 @@
 import json
 
+from starlette.responses import Response
+
 from app.config import Settings
-from app.main import create_app, health_response
+from app.main import add_security_headers, create_app, health_response
 
 
 class ReadyDatabase:
@@ -38,3 +40,10 @@ def test_health_route_is_registered(database):
     )
 
     assert any(route.path == "/health" for route in application.routes)
+
+
+def test_responses_allow_origin_referrer_for_cross_origin_map_tiles():
+    response = Response()
+    add_security_headers(response)
+
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"

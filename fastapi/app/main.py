@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from pymongo.database import Database
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.responses import Response
 
 from .auth import CSRF_COOKIE, SESSION_COOKIE, csrf_cookie_update
 from .config import Settings, get_settings
@@ -38,6 +39,14 @@ def health_response(database: Database[Any]) -> JSONResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     return JSONResponse({"status": "ok", "database": "ok"})
+
+
+def add_security_headers(response: Response) -> None:
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # OSM's web tile service requires a Referer. Send only this site's origin
+    # for cross-origin requests while retaining the full referrer internally.
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Frame-Options"] = "DENY"
 
 
 def create_app(settings: Settings | None = None, database: Database[Any] | None = None) -> FastAPI:
@@ -91,9 +100,7 @@ def create_app(settings: Settings | None = None, database: Database[Any] | None 
                 )
             return JSONResponse({"detail": "Request body too large"}, status_code=413)
         response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "same-origin"
-        response.headers["X-Frame-Options"] = "DENY"
+        add_security_headers(response)
         cookie_csrf = request.cookies.get(CSRF_COOKIE, "")
         csrf_value = csrf_cookie_update(
             request.app.state.db,
