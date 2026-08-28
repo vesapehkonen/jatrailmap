@@ -2,6 +2,9 @@ package com.jatrail;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+
+import androidx.exifinterface.media.ExifInterface;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -42,10 +45,14 @@ final class TrailPhotoProcessor {
             throw new IOException("Photo could not be decoded: " + source.getName());
         }
 
-        Bitmap output = decoded;
-        int[] dimensions = scaledDimensions(decoded.getWidth(), decoded.getHeight());
-        if (dimensions[0] != decoded.getWidth() || dimensions[1] != decoded.getHeight()) {
-            output = Bitmap.createScaledBitmap(decoded, dimensions[0], dimensions[1], true);
+        ExifInterface exif = new ExifInterface(source);
+        int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL);
+        Bitmap oriented = normalizeOrientation(decoded, orientation);
+        Bitmap output = oriented;
+        int[] dimensions = scaledDimensions(oriented.getWidth(), oriented.getHeight());
+        if (dimensions[0] != oriented.getWidth() || dimensions[1] != oriented.getHeight()) {
+            output = Bitmap.createScaledBitmap(oriented, dimensions[0], dimensions[1], true);
         }
 
         try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
@@ -55,11 +62,48 @@ final class TrailPhotoProcessor {
             return new ProcessedPhoto(jpegFilename(source.getName()), bytes.toByteArray(),
                     output.getWidth(), output.getHeight());
         } finally {
-            if (output != decoded) {
+            if (output != oriented) {
                 output.recycle();
+            }
+            if (oriented != decoded) {
+                oriented.recycle();
             }
             decoded.recycle();
         }
+    }
+
+    static Bitmap normalizeOrientation(Bitmap source, int orientation) {
+        Matrix transform = new Matrix();
+        switch (orientation) {
+            case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+                transform.setScale(-1f, 1f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                transform.setRotate(180f);
+                break;
+            case ExifInterface.ORIENTATION_FLIP_VERTICAL:
+                transform.setScale(-1f, 1f);
+                transform.postRotate(180f);
+                break;
+            case ExifInterface.ORIENTATION_TRANSPOSE:
+                transform.setScale(-1f, 1f);
+                transform.postRotate(270f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                transform.setRotate(90f);
+                break;
+            case ExifInterface.ORIENTATION_TRANSVERSE:
+                transform.setScale(-1f, 1f);
+                transform.postRotate(90f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                transform.setRotate(270f);
+                break;
+            default:
+                return source;
+        }
+        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(),
+                transform, true);
     }
 
     static int sampleSize(int width, int height) {
