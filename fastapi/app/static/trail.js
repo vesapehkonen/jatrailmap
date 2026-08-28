@@ -201,7 +201,7 @@ if (container && window.L) {
     const source = `/image/${encodeURIComponent(imageId)}`;
     return L.divIcon({
       className: "photo-thumbnail-marker",
-      html: `<img src="${source}" alt="">`,
+      html: `<span style="background-image: url('${source}')"></span>`,
       iconSize: [42, 42],
       iconAnchor: [21, 21],
       popupAnchor: [0, -23],

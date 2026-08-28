@@ -191,7 +191,7 @@ dd { margin: 0; color: var(--stone-700); }
 .photo-thumbnail-marker.is-selected { z-index: 550 !important; border-color: var(--amber); box-shadow: 0 0 0 4px #e7a3214d, 0 5px 18px #0008; transform: scale(1.16); }
 .photo-thumbnail-marker.is-main-photo { border-color: var(--amber); box-shadow: 0 0 0 3px #e7a32166, 0 3px 12px #0008; }
 .photo-thumbnail-marker.is-spiderfied { border-color: var(--forest-600); box-shadow: 0 3px 12px #0008; }
-.photo-thumbnail-marker img { position: absolute; inset: 0; display: block; width: 100%; max-width: none; height: 100%; object-fit: cover; object-position: center; }
+.photo-thumbnail-marker > span { position: absolute; inset: 0; display: block; background-position: center; background-size: cover; }
 .photo-spider-leg { stroke-linecap: round; }
 .endpoint-label { padding: .2rem .45rem; border: 0; border-radius: 1rem; box-shadow: var(--shadow-sm); font-weight: 750; }
 .endpoint-marker { display: flex; align-items: center; height: 28px; color: white; filter: drop-shadow(0 2px 4px #0005); font-size: .72rem; font-weight: 800; }
