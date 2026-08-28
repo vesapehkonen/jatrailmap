@@ -217,6 +217,7 @@ if (container && window.L) {
     });
   }
   const map = L.map("map").setView([0, 0], 2);
+  window.addMapFullscreenControl?.(map, document.querySelector(".map-shell"));
   const mapStatus = document.querySelector("#map-status");
   const photoMarkers = [];
   const spiderLegs = L.layerGroup().addTo(map);

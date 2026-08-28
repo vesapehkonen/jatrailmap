@@ -460,6 +460,13 @@ form.is-loading button[type="submit"]::after { width: .8rem; height: .8rem; marg
 .leaflet-popup-content-wrapper { border: 1px solid var(--stone-200); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
 .leaflet-popup-content { margin: 1rem; font-family: inherit; }
 .leaflet-control-zoom { overflow: hidden; border: 1px solid var(--stone-200) !important; border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-sm) !important; }
+.leaflet-control-map-fullscreen { overflow: hidden; border: 1px solid var(--stone-200) !important; border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-sm) !important; }
+.map-fullscreen-button { display: grid; width: 2rem; min-height: 2rem; padding: 0; place-items: center; color: var(--stone-950); background: white; border: 0; border-radius: 0; box-shadow: none; font: 700 1.35rem/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+.map-fullscreen-button:hover { color: var(--forest-900); background: var(--stone-100); box-shadow: none; }
+.map-shell:fullscreen, .editor-map-stage:fullscreen, .is-map-fullscreen { width: 100vw; height: 100vh; height: 100dvh; min-height: 0; background: var(--canvas); border-radius: 0; }
+.is-map-fullscreen { position: fixed !important; z-index: 2000; inset: 0; }
+.map-shell:fullscreen #map, .editor-map-stage:fullscreen #map, .is-map-fullscreen #map { width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; }
+body.has-map-fullscreen { overflow: hidden; }
 
 @media (max-width: 700px) {
   .site-header { padding-inline: 1rem; }

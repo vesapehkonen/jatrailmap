@@ -187,6 +187,7 @@ if (editor && window.L) {
   document.querySelector("#close-photo-panel").addEventListener("click", closePhotoPanel);
 
   const map = L.map("map").setView([0, 0], 2);
+  window.addMapFullscreenControl?.(map, document.querySelector(".editor-map-stage"));
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap contributors",

@@ -92,3 +92,65 @@ window.confirmAction = (message, title = "Confirm action", confirmLabel = "Confi
     }, { once: true });
   });
 };
+
+window.addMapFullscreenControl = (map, target) => {
+  if (!map || !target || !window.L) return;
+
+  let fallbackFullscreen = false;
+  const control = L.control({ position: "topright" });
+  let button;
+
+  const resizeMap = () => window.requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+  const updateButton = () => {
+    const expanded = document.fullscreenElement === target || fallbackFullscreen;
+    button.textContent = expanded ? "×" : "⛶";
+    button.title = expanded ? "Exit fullscreen map" : "View fullscreen map";
+    button.setAttribute("aria-label", button.title);
+    button.setAttribute("aria-pressed", String(expanded));
+  };
+  const setFallbackFullscreen = (expanded) => {
+    fallbackFullscreen = expanded;
+    target.classList.toggle("is-map-fullscreen", expanded);
+    document.body.classList.toggle("has-map-fullscreen", expanded);
+    updateButton();
+    resizeMap();
+  };
+
+  control.onAdd = () => {
+    const wrapper = L.DomUtil.create("div", "leaflet-bar leaflet-control-map-fullscreen");
+    button = L.DomUtil.create("button", "map-fullscreen-button", wrapper);
+    button.type = "button";
+    updateButton();
+    L.DomEvent.disableClickPropagation(wrapper);
+    L.DomEvent.on(button, "click", async (event) => {
+      L.DomEvent.stop(event);
+      if (fallbackFullscreen) {
+        setFallbackFullscreen(false);
+        return;
+      }
+      if (document.fullscreenElement === target) {
+        await document.exitFullscreen();
+        return;
+      }
+      if (target.requestFullscreen) {
+        try {
+          await target.requestFullscreen();
+          return;
+        } catch (_error) {
+          // Use the CSS fallback when fullscreen is unavailable or denied.
+        }
+      }
+      setFallbackFullscreen(true);
+    });
+    return wrapper;
+  };
+  control.addTo(map);
+
+  document.addEventListener("fullscreenchange", () => {
+    updateButton();
+    resizeMap();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && fallbackFullscreen) setFallbackFullscreen(false);
+  });
+};
