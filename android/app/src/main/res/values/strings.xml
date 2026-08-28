@@ -1,4 +1,5 @@
 <resources>
+    <string name="more_options">More options</string>
     <string name="app_name">JaTrail</string>
     <string name="text_main">Welcome to JaTrail.</string>
     <string name="text_locs">"Locations: 0"</string>
@@ -45,7 +46,6 @@
     <string name="edit_description">Description</string>
     <string name="title_activity_transfer">Upload trail</string>
     <string name="text_send_trail">Uploads are queued and continue when network access is available.</string>
-    <string name="upload_saved_trail">Upload saved trail</string>
     <string name="upload_trail_summary">%1$s · %2$d GPS points</string>
     <string name="upload_trail_summary_empty">Saved trail</string>
     <string name="upload_trail_details_section">Trail details</string>

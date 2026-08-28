@@ -44,6 +44,27 @@
         app:iconTint="?attr/colorPrimary"
         app:strokeColor="?attr/colorPrimary" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_main_menu"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_margin="8dp"
+        android:backgroundTint="?attr/colorSurface"
+        android:contentDescription="@string/more_options"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minWidth="48dp"
+        android:padding="0dp"
+        android:tooltipText="@string/more_options"
+        android:visibility="gone"
+        app:icon="@drawable/ic_more_vert"
+        app:iconGravity="textStart"
+        app:iconPadding="0dp"
+        app:iconTint="?attr/colorPrimary"
+        app:strokeColor="?attr/colorPrimary" />
+
     <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="40dp"

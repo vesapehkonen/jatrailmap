@@ -40,11 +40,10 @@ public final class OfflineMapsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowInsetsHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_offline_maps);
-        setTitle(R.string.offline_maps_title);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        WindowInsetsHelper.setUpToolbar(this, R.string.offline_maps_title, true);
+        WindowInsetsHelper.applyContentInsets(this);
         mapList = findViewById(R.id.offline_map_list);
         emptyMessage = findViewById(R.id.offline_maps_empty);
         importButton = findViewById(R.id.button_import_map);

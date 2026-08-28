@@ -27,6 +27,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.EditText;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.Manifest;
@@ -84,8 +85,6 @@ import java.util.concurrent.Executors;
 import androidx.core.content.FileProvider;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String FILE_PROVIDER_AUTHORITY =
-            "com.jatrail.fileprovider";
     private static final ExecutorService MAP_COVERAGE_EXECUTOR =
             Executors.newSingleThreadExecutor();
 
@@ -295,7 +294,19 @@ public class MainActivity extends AppCompatActivity {
         Log.i(LOG, "MainActivity: onCreate()");
         Log.i(LOG, "onCreate() delete_this=" + delete_this);
         super.onCreate(savedInstanceState);
+        WindowInsetsHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_main);
+        WindowInsetsHelper.setUpToolbar(this, R.string.app_name, false);
+        boolean landscape = getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
+        if (landscape) {
+            findViewById(R.id.app_toolbar).setVisibility(View.GONE);
+            WindowInsetsHelper.useContentBackgroundStatusBarIcons(this);
+            View menuButton = findViewById(R.id.button_main_menu);
+            menuButton.setVisibility(View.VISIBLE);
+            menuButton.setOnClickListener(view -> showMainMenu(view));
+        }
+        WindowInsetsHelper.applyContentInsets(this, landscape);
         Context context = getApplicationContext();
         timer = new Timer((Chronometer) findViewById(R.id.chronometer));
         recordingStateStore = new RecordingStateStore(context);
@@ -461,6 +472,13 @@ public class MainActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
+    }
+
+    private void showMainMenu(View anchor) {
+        PopupMenu popupMenu = new PopupMenu(this, anchor);
+        popupMenu.getMenuInflater().inflate(R.menu.menu_main, popupMenu.getMenu());
+        popupMenu.setOnMenuItemClickListener(this::onOptionsItemSelected);
+        popupMenu.show();
     }
 
     @Override
@@ -976,10 +994,12 @@ public class MainActivity extends AppCompatActivity {
 	    return;
 	}
         //takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
-	Uri photoURI = FileProvider.getUriForFile(this,
-                                                  FILE_PROVIDER_AUTHORITY,
-                                                  photoFile);
-	takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+	Uri photoURI = FileProvider.getUriForFile(
+                this, getFileProviderAuthority(), photoFile);
+	takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                .setClipData(ClipData.newRawUri("photo", photoURI));
 	try {
             startActivityForResult(takePictureIntent, TAKE_PICTURE);
         } catch (Exception e) {
@@ -1028,7 +1048,7 @@ public class MainActivity extends AppCompatActivity {
             DiagnosticLog.event(this, "UI", "DIAGNOSTICS_EXPORT_REQUESTED");
             File diagnostics = DiagnosticLog.createExportFile(this);
             Uri uri = FileProvider.getUriForFile(
-                    this, FILE_PROVIDER_AUTHORITY, diagnostics);
+                    this, getFileProviderAuthority(), diagnostics);
             Intent share = new Intent(Intent.ACTION_SEND)
                     .setType("text/plain")
                     .putExtra(Intent.EXTRA_STREAM, uri)
@@ -1040,5 +1060,9 @@ public class MainActivity extends AppCompatActivity {
             DiagnosticLog.error(this, "UI", "DIAGNOSTICS_EXPORT_FAILED", exception);
             Toast.makeText(this, R.string.diagnostics_export_failed, Toast.LENGTH_LONG).show();
         }
+    }
+
+    private String getFileProviderAuthority() {
+        return getPackageName() + ".fileprovider";
     }
 }

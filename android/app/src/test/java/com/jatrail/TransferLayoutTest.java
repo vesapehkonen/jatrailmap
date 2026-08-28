@@ -22,11 +22,12 @@ import org.robolectric.annotation.Config;
 @Config(sdk = 35)
 public class TransferLayoutTest {
     @Test
-    public void uploadFormInflatesWithHeaderAndMaterialFields() {
+    public void uploadFormInflatesWithSummaryQueueNoteAndMaterialFields() {
         View form = inflater().inflate(R.layout.activity_transfer, null);
         EditText serverUrl = form.findViewById(R.id.edit_server_url);
 
-        assertNotNull(form.findViewById(R.id.text_upload_header));
+        assertNotNull(form.findViewById(R.id.text_upload_trail_summary));
+        assertNotNull(form.findViewById(R.id.text_upload_queue_note));
         assertNotNull(form.findViewById(R.id.input_trail_name));
         assertNotNull(form.findViewById(R.id.input_server_url));
         assertNotNull(form.findViewById(R.id.text_http_warning));

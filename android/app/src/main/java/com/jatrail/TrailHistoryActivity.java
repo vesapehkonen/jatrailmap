@@ -20,11 +20,10 @@ public final class TrailHistoryActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowInsetsHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_trail_history);
-        setTitle(R.string.trail_history_title);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        WindowInsetsHelper.setUpToolbar(this, R.string.trail_history_title, true);
+        WindowInsetsHelper.applyContentInsets(this);
         trailRepository = new TrailRepository(this);
         trailList = findViewById(R.id.trail_history_list);
         emptyMessage = findViewById(R.id.trail_history_empty);

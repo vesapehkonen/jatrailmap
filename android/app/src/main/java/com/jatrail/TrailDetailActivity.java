@@ -52,16 +52,15 @@ public final class TrailDetailActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowInsetsHelper.enableEdgeToEdge(this);
         trailId = getIntent().getLongExtra(EXTRA_TRAIL_ID, 0);
         if (trailId <= 0) {
             finish();
             return;
         }
         setContentView(R.layout.activity_trail_detail);
-        setTitle(R.string.trail_details_title);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        WindowInsetsHelper.setUpToolbar(this, R.string.trail_details_title, true);
+        WindowInsetsHelper.applyContentInsets(this);
         trailRepository = new TrailRepository(this);
         recordingStateStore = new RecordingStateStore(this);
         mapView = findViewById(R.id.trail_detail_map);

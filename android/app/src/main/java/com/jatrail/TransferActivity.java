@@ -51,11 +51,10 @@ public class TransferActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowInsetsHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_transfer);
-        setTitle(R.string.title_activity_transfer);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        WindowInsetsHelper.setUpToolbar(this, R.string.title_activity_transfer, true);
+        WindowInsetsHelper.applyImeAwareContentInsets(this);
         trailId = getIntent().getLongExtra(EXTRA_TRAIL_ID, 0);
         pointCount = getIntent().getIntExtra(EXTRA_POINT_COUNT, 0);
         trailRepository = new TrailRepository(this);

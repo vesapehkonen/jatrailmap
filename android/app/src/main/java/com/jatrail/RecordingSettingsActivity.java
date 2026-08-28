@@ -32,11 +32,10 @@ public final class RecordingSettingsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowInsetsHelper.enableEdgeToEdge(this);
         setContentView(R.layout.activity_recording_settings);
-        setTitle(R.string.recording_settings_title);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        WindowInsetsHelper.setUpToolbar(this, R.string.recording_settings_title, true);
+        WindowInsetsHelper.applyContentInsets(this);
         configureUnitSystem(UnitSystemStore.load(this));
         render(RecordingSettings.load(this));
         configureMapStyle(MapThemeStore.load(this));
