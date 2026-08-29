@@ -4,7 +4,7 @@
   "description": "Just Another Trail Map",
   "main": "app.js",
   "dependencies": {
-    "bcrypt": "^4.0.1",
+    "bcrypt": "^5.0.0",
     "body-parser": "*",
     "bson": "*",
     "cookie-parser": "*",
